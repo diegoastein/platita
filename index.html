@@ -16,18 +16,18 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { background-color: #f8fafc; font-family: 'Inter', sans-serif; }
+        body { background-color: #f8fafc; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         .glass-nav {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
             border-top: 1px solid rgba(0,0,0,0.05);
         }
-        .card-shadow { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
-        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .card-shadow { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02); }
+        .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -60,7 +60,9 @@
             Trash: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
             Plus: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
             Check: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>,
-            Logout: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            Logout: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>,
+            ChevronLeft: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>,
+            ChevronRight: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
         };
 
         const formatCurrency = (val) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(val || 0);
@@ -71,8 +73,12 @@
             const [items, setItems] = useState([]);
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState(null);
-            const [selectedMonth] = useState(new Date().getMonth());
-            const [selectedYear] = useState(new Date().getFullYear());
+            
+            // Estado para el mes y año seleccionados
+            const [navDate, setNavDate] = useState(new Date());
+
+            const selectedMonth = navDate.getMonth();
+            const selectedYear = navDate.getFullYear();
 
             useEffect(() => {
                 const unsubscribe = auth.onAuthStateChanged((u) => {
@@ -88,7 +94,6 @@
                     setLoading(true);
                     await auth.signInWithPopup(provider);
                 } catch (e) {
-                    console.error("Login error", e);
                     setError(`Error al ingresar: ${e.message}`);
                     setLoading(false);
                 }
@@ -110,9 +115,7 @@
                     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     setItems(data);
                     setLoading(false);
-                    setError(null);
                 }, (err) => {
-                    console.error("Firestore Error:", err);
                     setError(`Error de base de datos: ${err.message}`);
                     setLoading(false);
                 });
@@ -130,9 +133,19 @@
                 const recPaid = filtered.filter(i => i.type === 'recurring' && i.paid).reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0);
                 const recPending = filtered.filter(i => i.type === 'recurring' && !i.paid).reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0);
                 const daily = filtered.filter(i => i.type === 'daily').reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0);
+                const totalSpent = recPaid + daily;
+                const spendRatio = income > 0 ? (totalSpent / income) * 100 : 0;
 
-                return { income, recPaid, recPending, daily, balance: income - recPaid - daily, totalSpent: recPaid + daily };
+                return { income, recPaid, recPending, daily, balance: income - recPaid - daily, totalSpent, spendRatio };
             }, [items, selectedMonth, selectedYear]);
+
+            const changeMonth = (offset) => {
+                setNavDate(prev => {
+                    const next = new Date(prev);
+                    next.setMonth(next.getMonth() + offset);
+                    return next;
+                });
+            };
 
             const add = async (data) => {
                 const col = getUserCollection();
@@ -140,6 +153,7 @@
                 await col.add({
                     ...data,
                     userId: user.uid,
+                    date: navDate.toISOString(), // Guardar con la fecha del mes que estamos viendo
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
             };
@@ -158,16 +172,18 @@
                 }
             };
 
-            const update = async (id, amount) => {
+            const updateField = async (id, field, value) => {
                 const col = getUserCollection();
                 if (!col) return;
-                await col.doc(id).update({ amount: parseFloat(amount) || 0 });
+                const updateData = {};
+                updateData[field] = field === 'amount' ? (parseFloat(value) || 0) : value;
+                await col.doc(id).update(updateData);
             };
 
             if (loading) return (
                 <div className="flex flex-col h-screen items-center justify-center bg-white p-6 text-center">
                     <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="text-slate-500 font-medium text-sm">Cargando...</p>
+                    <p className="text-slate-500 font-medium text-sm">Sincronizando...</p>
                 </div>
             );
 
@@ -176,8 +192,8 @@
                     <div className="bg-blue-600 text-white p-4 rounded-3xl mb-6 shadow-xl shadow-blue-100">
                         <Icons.Wallet />
                     </div>
-                    <h1 className="text-2xl font-bold text-slate-900 mb-2">Biyuya Personal</h1>
-                    <p className="text-slate-500 text-sm mb-8">Para sincronizar tus finanzas entre dispositivos, ingresa con tu cuenta de Google.</p>
+                    <h1 className="text-2xl font-bold text-slate-900 mb-2 tracking-tight">Biyuya Personal</h1>
+                    <p className="text-slate-500 text-sm mb-8">Administrá tus sueldos y gastos con sincronización en tiempo real.</p>
                     <button 
                         onClick={handleGoogleLogin} 
                         className="bg-slate-900 text-white w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-3 active:scale-95 transition-transform"
@@ -191,40 +207,101 @@
 
             return (
                 <div className="max-w-md mx-auto min-h-screen bg-slate-50 pb-28 animate-fade-in">
+                    {/* Header con Navegación de Fecha */}
                     <header className="bg-white p-6 sticky top-0 z-20 border-b border-slate-100 shadow-sm">
                         <div className="flex justify-between items-center mb-5">
                             <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                                 <span className="bg-blue-600 text-white p-1 rounded">BP</span>
-                                Biyuya Personal
+                                Biyuya
                             </h1>
-                            <button onClick={() => auth.signOut()} className="text-slate-400 hover:text-rose-500 transition-colors">
+                            <div className="flex items-center gap-3 bg-slate-100 px-3 py-1.5 rounded-full">
+                                <button onClick={() => changeMonth(-1)} className="text-slate-500 p-0.5 hover:bg-white rounded-full transition-colors"><Icons.ChevronLeft /></button>
+                                <span className="text-xs font-bold text-slate-700 uppercase tracking-tighter min-w-[80px] text-center">
+                                    {navDate.toLocaleString('es-ES', { month: 'short', year: 'numeric' })}
+                                </span>
+                                <button onClick={() => changeMonth(1)} className="text-slate-500 p-0.5 hover:bg-white rounded-full transition-colors"><Icons.ChevronRight /></button>
+                            </div>
+                            <button onClick={() => auth.signOut()} className="text-slate-300 hover:text-rose-500 transition-colors">
                                 <Icons.Logout />
                             </button>
                         </div>
 
-                        <div className="bg-slate-900 rounded-3xl p-6 text-white card-shadow relative overflow-hidden">
+                        <div className="bg-slate-900 rounded-[2rem] p-6 text-white card-shadow relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 opacity-10 rounded-full -mr-16 -mt-16"></div>
                             <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Disponible</p>
-                            <h2 className="text-4xl font-bold mb-6 tracking-tight">{formatCurrency(stats.balance)}</h2>
+                            <h2 className="text-4xl font-bold mb-5 tracking-tight">{formatCurrency(stats.balance)}</h2>
                             
+                            {/* Barra de Progreso Gastado */}
+                            <div className="w-full bg-slate-800 h-1.5 rounded-full mb-5 overflow-hidden">
+                                <div 
+                                    className={`h-full transition-all duration-700 ${stats.spendRatio > 90 ? 'bg-rose-500' : 'bg-blue-500'}`}
+                                    style={{ width: `${Math.min(stats.spendRatio, 100)}%` }}
+                                ></div>
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4 border-t border-slate-800 pt-4">
                                 <div>
                                     <p className="text-slate-500 text-[10px] uppercase font-bold">Ingresos</p>
                                     <p className="text-emerald-400 font-bold text-sm">{formatCurrency(stats.income)}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-slate-500 text-[10px] uppercase font-bold">Egresos</p>
+                                    <p className="text-slate-500 text-[10px] uppercase font-bold">Consumido</p>
                                     <p className="text-rose-400 font-bold text-sm">{formatCurrency(stats.totalSpent)}</p>
                                 </div>
                             </div>
                         </div>
                     </header>
 
-                    <main className="p-4 space-y-4">
+                    <main className="p-4 space-y-6">
                         {view === 'dashboard' && <Summary stats={stats} />}
-                        {view === 'income' && <ListView title="Ingresos" type="income" items={items.filter(i => i.type === 'income')} onAdd={add} onDelete={del} onUpdate={update} placeholder="Sueldo o Extra" accent="emerald" />}
-                        {view === 'recurring' && <ListView title="Pagos Fijos" type="recurring" items={items.filter(i => i.type === 'recurring')} onAdd={add} onDelete={del} onUpdate={update} onToggle={toggle} placeholder="Expensas, Alquiler..." accent="amber" showCheck />}
-                        {view === 'daily' && <ListView title="Gastos Diarios" type="daily" items={items.filter(i => i.type === 'daily')} onAdd={add} onDelete={del} onUpdate={update} placeholder="Super, Café, etc." accent="rose" />}
+                        {view === 'income' && (
+                            <ListView 
+                                title="Fuentes de Ingreso" 
+                                type="income" 
+                                items={items.filter(i => {
+                                    const d = i.date ? new Date(i.date) : new Date();
+                                    return i.type === 'income' && d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+                                })} 
+                                onAdd={add} 
+                                onDelete={del} 
+                                onUpdate={updateField} 
+                                placeholder="Ej: Sueldo Empresa A" 
+                                accent="emerald" 
+                            />
+                        )}
+                        {view === 'recurring' && (
+                            <ListView 
+                                title="Gastos Fijos (Comprometidos)" 
+                                type="recurring" 
+                                items={items.filter(i => {
+                                    const d = i.date ? new Date(i.date) : new Date();
+                                    return i.type === 'recurring' && d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+                                })} 
+                                onAdd={add} 
+                                onDelete={del} 
+                                onUpdate={updateField} 
+                                onToggle={toggle} 
+                                placeholder="Ej: Expensas o Internet" 
+                                accent="amber" 
+                                showCheck 
+                            />
+                        )}
+                        {view === 'daily' && (
+                            <ListView 
+                                title="Gastos del Día" 
+                                type="daily" 
+                                items={items.filter(i => {
+                                    const d = i.date ? new Date(i.date) : new Date();
+                                    return i.type === 'daily' && d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+                                })} 
+                                onAdd={add} 
+                                onDelete={del} 
+                                onUpdate={updateField} 
+                                placeholder="Ej: Super, Nafta, Café..." 
+                                accent="rose" 
+                                showCategories
+                            />
+                        )}
                     </main>
 
                     <nav className="fixed bottom-0 left-0 right-0 glass-nav z-30">
@@ -240,7 +317,7 @@
         };
 
         const NavTab = ({ active, onClick, icon }) => (
-            <button onClick={onClick} className={`p-3 rounded-2xl transition-all duration-300 ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-110' : 'text-slate-400 hover:bg-slate-100'}`}>
+            <button onClick={onClick} className={`p-3.5 rounded-2xl transition-all duration-300 ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-100 scale-110' : 'text-slate-400 hover:bg-slate-100'}`}>
                 {icon}
             </button>
         );
@@ -250,54 +327,100 @@
                 <div className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center justify-between card-shadow">
                     <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center"><Icons.Calendar /></div>
                     <div className="flex-1 ml-4">
-                        <p className="text-slate-400 text-[10px] font-bold uppercase">Pendiente de Pago</p>
+                        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">A pagar pronto</p>
                         <p className="text-lg font-bold text-slate-800">{formatCurrency(stats.recPending)}</p>
                     </div>
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center justify-between card-shadow">
                     <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center"><Icons.Shopping /></div>
                     <div className="flex-1 ml-4">
-                        <p className="text-slate-400 text-[10px] font-bold uppercase">Gastos Diarios</p>
+                        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Gastos Diarios</p>
                         <p className="text-lg font-bold text-slate-800">{formatCurrency(stats.daily)}</p>
                     </div>
+                </div>
+                <div className="p-8 text-center bg-indigo-50 rounded-[2.5rem] border border-indigo-100 mt-6">
+                    <p className="text-indigo-800 text-sm font-medium italic">"Tus ahorros son tu libertad futura."</p>
                 </div>
             </div>
         );
 
-        const ListView = ({ title, type, items, onAdd, onDelete, onUpdate, onToggle, placeholder, accent, showCheck }) => {
+        const ListView = ({ title, type, items, onAdd, onDelete, onUpdate, onToggle, placeholder, accent, showCheck, showCategories }) => {
             const [newName, setNewName] = useState('');
             const [newAmount, setNewAmount] = useState('');
+            const [newCategory, setNewCategory] = useState('General');
+
+            const categories = ["General", "Comida", "Transporte", "Hogar", "Ocio", "Salud"];
 
             const handleAdd = (e) => {
                 e.preventDefault();
                 if (!newName || !newAmount) return;
-                onAdd({ name: newName, amount: parseFloat(newAmount), type, date: new Date().toISOString(), paid: type === 'income' });
+                onAdd({ 
+                    name: newName, 
+                    amount: parseFloat(newAmount), 
+                    category: newCategory,
+                    type, 
+                    paid: type === 'income' 
+                });
                 setNewName(''); setNewAmount('');
             };
 
             return (
                 <div className="space-y-4 animate-fade-in">
-                    <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{title}</h2>
-                    <form onSubmit={handleAdd} className="bg-white p-4 rounded-2xl border border-slate-200 card-shadow flex flex-col gap-3">
-                        <input className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder={placeholder} value={newName} onChange={e => setNewName(e.target.value)} />
+                    <div className="flex justify-between items-center ml-1">
+                        <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{title}</h2>
+                        <span className="text-[10px] font-bold text-blue-500">{items.length} regs.</span>
+                    </div>
+
+                    <form onSubmit={handleAdd} className="bg-white p-4 rounded-[1.5rem] border border-slate-200 card-shadow flex flex-col gap-3">
+                        <input className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 transition-all" 
+                            placeholder={placeholder} value={newName} onChange={e => setNewName(e.target.value)} />
+                        
+                        {showCategories && (
+                            <div className="flex gap-2 overflow-x-auto py-1 no-scrollbar">
+                                {categories.map(cat => (
+                                    <button key={cat} type="button" onClick={() => setNewCategory(cat)} 
+                                        className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all whitespace-nowrap ${newCategory === cat ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                        {cat}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
                         <div className="flex gap-2">
-                            <input type="number" className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-bold outline-none flex-1" placeholder="Monto" value={newAmount} onChange={e => setNewAmount(e.target.value)} />
-                            <button type="submit" className="bg-blue-600 text-white px-6 rounded-xl font-bold"><Icons.Plus /></button>
+                            <div className="relative flex-1">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 font-bold">$</span>
+                                <input type="number" className="w-full p-3 pl-7 bg-slate-50 border-none rounded-xl text-sm font-bold outline-none" 
+                                    placeholder="0.00" value={newAmount} onChange={e => setNewAmount(e.target.value)} />
+                            </div>
+                            <button type="submit" className="bg-blue-600 text-white px-6 rounded-xl font-bold hover:bg-blue-700 transition-colors">
+                                <Icons.Plus />
+                            </button>
                         </div>
                     </form>
+
                     <div className="space-y-3">
-                        {items.sort((a,b) => new Date(b.date) - new Date(a.date)).map(item => (
-                            <div key={item.id} className={`bg-white p-4 rounded-2xl border-l-4 border-${accent}-400 card-shadow flex items-center justify-between gap-4 transition-all ${item.paid && showCheck ? 'opacity-30 grayscale' : ''}`}>
-                                <div className="flex-1">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{item.name}</p>
-                                    <div className="flex items-center text-xl font-bold text-slate-900">
-                                        <span className="text-slate-300 mr-1">$</span>
-                                        <input type="number" className="bg-transparent outline-none w-full" value={item.amount} onChange={e => onUpdate(item.id, e.target.value)} />
+                        {items.sort((a,b) => new Date(b.createdAt?.toDate?.() || b.date) - new Date(a.createdAt?.toDate?.() || a.date)).map(item => (
+                            <div key={item.id} className={`bg-white p-4 rounded-[1.25rem] border-l-4 border-${accent}-400 card-shadow flex items-center justify-between gap-4 transition-all ${item.paid && showCheck ? 'opacity-30 grayscale scale-[0.98]' : 'hover:translate-x-1'}`}>
+                                <div className="flex-1 min-w-0">
+                                    <input 
+                                        className="text-[10px] font-bold text-slate-400 uppercase tracking-tight bg-transparent w-full outline-none focus:text-blue-500" 
+                                        value={item.name} 
+                                        onChange={e => onUpdate(item.id, 'name', e.target.value)}
+                                    />
+                                    {item.category && item.type === 'daily' && <span className="text-[8px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 font-bold">{item.category}</span>}
+                                    <div className="flex items-center text-xl font-bold text-slate-900 mt-0.5">
+                                        <span className="text-slate-200 mr-1">$</span>
+                                        <input 
+                                            type="number" 
+                                            className="bg-transparent outline-none w-full" 
+                                            value={item.amount} 
+                                            onChange={e => onUpdate(item.id, 'amount', e.target.value)} 
+                                        />
                                     </div>
                                 </div>
-                                <div className="flex gap-1">
-                                    {showCheck && <button onClick={onToggle} className={`p-2 rounded-xl ${item.paid ? 'text-blue-600 bg-blue-50' : 'text-slate-300'}`}><Icons.Check /></button>}
-                                    <button onClick={() => onDelete(item.id)} className="p-2 text-slate-200 hover:text-rose-500"><Icons.Trash /></button>
+                                <div className="flex gap-1 shrink-0">
+                                    {showCheck && <button onClick={() => onToggle(item)} className={`p-2 rounded-xl transition-all ${item.paid ? 'text-emerald-600 bg-emerald-50' : 'text-slate-200 hover:text-emerald-400'}`}><Icons.Check /></button>}
+                                    <button onClick={() => onDelete(item.id)} className="p-2 text-slate-100 hover:text-rose-500 transition-colors"><Icons.Trash /></button>
                                 </div>
                             </div>
                         ))}
