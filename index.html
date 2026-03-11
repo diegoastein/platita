@@ -168,7 +168,13 @@
                 const totalSpent = recPaid + daily;
                 const spendRatio = income > 0 ? (totalSpent / income) * 100 : 0;
 
-                return { income, recPaid, recPending, daily, balance: income - recPaid - daily, totalSpent, spendRatio };
+                // Primeros 3 vencimientos pendientes ordenados por día
+                const upcomingExpenses = currentMonthItems
+                    .filter(i => i.type === 'recurring' && !i.paid)
+                    .sort((a,b) => (a.dueDay || 99) - (b.dueDay || 99))
+                    .slice(0, 3);
+
+                return { income, recPaid, recPending, daily, balance: income - recPaid - daily, totalSpent, spendRatio, upcomingExpenses };
             }, [currentMonthItems]);
 
             const changeMonth = (offset) => {
@@ -209,7 +215,7 @@
                     return;
                 }
 
-                if (confirm(`¿Importar ${prevItems.length} registros (con montos en cero) del mes anterior?`)) {
+                if (confirm(`¿Importar ${prevItems.length} registros (en $0) del mes anterior?`)) {
                     for (const item of prevItems) {
                         await add({
                             name: item.name,
@@ -332,7 +338,7 @@
                             <div className="bg-slate-900 p-8 rounded-[2rem] text-white flex flex-col items-center text-center animate-fade-in shadow-xl md:max-w-2xl mx-auto">
                                 <div className="bg-white/10 p-3 rounded-full mb-3"><Icons.Copy /></div>
                                 <h3 className="text-lg font-black mb-1">Iniciá el mes</h3>
-                                <p className="text-slate-400 text-xs mb-6 text-balance px-4">Importá tus registros fijos (Sueldos, Expensas, etc.) del mes anterior para empezar.</p>
+                                <p className="text-slate-400 text-xs mb-6 text-balance px-4">Importá tus registros fijos del mes anterior para empezar.</p>
                                 <button onClick={importPreviousMonth} className="bg-white text-slate-900 px-8 py-3 rounded-xl font-black text-xs active:scale-95 transition-all">
                                     Importar plantilla
                                 </button>
@@ -344,11 +350,10 @@
                             {view === 'analysis' && <AnalysisView stats={stats} allItems={items} currentMonthItems={currentMonthItems} navDate={navDate} />}
                             {view === 'income' && <ListView title="Cobros e Ingresos" type="income" items={currentMonthItems.filter(i => i.type === 'income')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Descripción (ej: Sueldo)" accent="emerald" />}
                             {view === 'recurring' && <ListView title="Gastos Fijos (Vencimientos)" type="recurring" items={currentMonthItems.filter(i => i.type === 'recurring')} onAdd={add} onDelete={del} onUpdate={updateField} onToggle={toggle} placeholder="Descripción (ej: Expensas)" accent="amber" showCheck showDueDay showCategories />}
-                            {view === 'daily' && <ListView title="Gastos Diarios (Efectivo/Tarjeta)" type="daily" items={currentMonthItems.filter(i => i.type === 'daily')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Detalle (ej: Farmacia)" accent="rose" showCategories />}
+                            {view === 'daily' && <ListView title="Gastos Diarios (Efectivo/Tarjeta)" type="daily" items={currentMonthItems.filter(i => i.type === 'daily')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Detalle (ej: Farmacia)" accent="rose" showCategories showDatePicker />}
                         </div>
                     </main>
 
-                    {/* Navegación Inferior */}
                     <nav className="fixed bottom-0 left-0 right-0 glass-nav z-30 md:bottom-8 md:left-1/2 md:-translate-x-1/2 md:w-fit md:rounded-full md:shadow-2xl md:border md:border-slate-200">
                         <div className="max-w-md md:max-w-none mx-auto flex justify-around md:justify-center md:gap-2 px-2 md:px-4 py-3 safe-area-bottom">
                             <NavTab active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<Icons.Wallet />} label="Inicio" />
@@ -371,24 +376,50 @@
 
         const Summary = ({ stats }) => (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
-                <SummaryCard title="Vencimientos Próximos" amount={stats.recPending} icon={<Icons.Calendar />} color="amber" />
-                <SummaryCard title="Gastos del Día" amount={stats.daily} icon={<Icons.Shopping />} color="rose" />
+                <SummaryCard 
+                    title="Vencimientos Próximos" 
+                    amount={stats.recPending} 
+                    icon={<Icons.Calendar />} 
+                    color="amber" 
+                    upcomingList={stats.upcomingExpenses}
+                />
+                <SummaryCard 
+                    title="Gastos del Día" 
+                    amount={stats.daily} 
+                    icon={<Icons.Shopping />} 
+                    color="rose" 
+                />
             </div>
         );
 
-        const SummaryCard = ({ title, amount, icon, color }) => {
+        const SummaryCard = ({ title, amount, icon, color, upcomingList = [] }) => {
             const colors = {
                 amber: "bg-amber-50 text-amber-600 border-amber-100",
                 rose: "bg-rose-50 text-rose-600 border-rose-100",
                 emerald: "bg-emerald-50 text-emerald-600 border-emerald-100"
             };
             return (
-                <div className={`bg-white p-5 rounded-[2rem] border ${colors[color]} flex items-center gap-4 card-shadow`}>
-                    <div className={`w-10 h-10 ${colors[color]} rounded-2xl flex items-center justify-center shrink-0 border`}>{icon}</div>
-                    <div>
-                        <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">{title}</p>
-                        <p className="text-xl font-black text-slate-800 tracking-tight">{formatCurrency(amount)}</p>
+                <div className={`bg-white p-5 rounded-[2rem] border ${colors[color]} card-shadow flex flex-col gap-4 h-full`}>
+                    <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 ${colors[color]} rounded-2xl flex items-center justify-center shrink-0 border`}>{icon}</div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest truncate">{title}</p>
+                            <p className="text-xl font-black text-slate-800 tracking-tight">{formatCurrency(amount)}</p>
+                        </div>
                     </div>
+                    
+                    {upcomingList.length > 0 && (
+                        <div className="bg-white/50 rounded-2xl p-3 border border-dashed border-amber-200">
+                            <ul className="space-y-2">
+                                {upcomingList.map(item => (
+                                    <li key={item.id} className="flex justify-between items-center text-[10px] font-bold text-slate-600">
+                                        <span className="truncate mr-2 uppercase tracking-tighter max-w-[120px]">{item.name}</span>
+                                        <span className="shrink-0 bg-amber-100 px-1.5 py-0.5 rounded text-amber-700">Día {item.dueDay}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </div>
             );
         };
@@ -396,9 +427,8 @@
         const AnalysisView = ({ stats, allItems, currentMonthItems, navDate }) => {
             const [mode, setMode] = useState('month');
             const [selectedRecurringName, setSelectedRecurringName] = useState('');
-            const [activeBarIdx, setActiveBarIdx] = useState(null); // Para mostrar importe en gráfico de tendencia
+            const [activeBarIdx, setActiveBarIdx] = useState(null);
 
-            // Nombres únicos de gastos recurrentes para el selector
             const recurringNames = useMemo(() => {
                 const names = new Set();
                 allItems.filter(i => i.type === 'recurring').forEach(i => names.add(i.name));
@@ -415,7 +445,6 @@
                 return Object.entries(cats).sort((a,b) => b[1] - a[1]);
             }, [currentMonthItems]);
 
-            // Ordenado de mayor a menor importe
             const timeline = useMemo(() => {
                 return currentMonthItems
                     .filter(i => i.type === 'recurring')
@@ -429,25 +458,17 @@
                     d.setMonth(d.getMonth() - i);
                     const m = d.getMonth();
                     const y = d.getFullYear();
-                    
                     const filtered = allItems.filter(item => {
                         const itemDate = new Date(item.date);
                         return itemDate.getMonth() === m && itemDate.getFullYear() === y;
                     });
-
                     const income = filtered.filter(f => f.type === 'income').reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0);
                     const expenses = filtered.filter(f => f.type !== 'income' && (f.type !== 'recurring' || f.paid)).reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0);
-
-                    months.push({ 
-                        label: d.toLocaleString('es-ES', { month: 'short' }), 
-                        income, 
-                        expenses
-                    });
+                    months.push({ label: d.toLocaleString('es-ES', { month: 'short' }), income, expenses });
                 }
                 return months;
             }, [allItems]);
 
-            // Evolución de un gasto específico
             const specificExpenseTrend = useMemo(() => {
                 if (!selectedRecurringName) return [];
                 const months = [];
@@ -456,16 +477,11 @@
                     d.setMonth(d.getMonth() - i);
                     const m = d.getMonth();
                     const y = d.getFullYear();
-
                     const record = allItems.find(item => {
                         const itemDate = new Date(item.date);
                         return itemDate.getMonth() === m && itemDate.getFullYear() === y && item.name === selectedRecurringName;
                     });
-
-                    months.push({
-                        label: d.toLocaleString('es-ES', { month: 'short' }),
-                        amount: record ? record.amount : 0
-                    });
+                    months.push({ label: d.toLocaleString('es-ES', { month: 'short' }), amount: record ? record.amount : 0 });
                 }
                 return months;
             }, [allItems, selectedRecurringName]);
@@ -480,31 +496,26 @@
                     {mode === 'month' ? (
                         <div className="space-y-6">
                             <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 card-shadow">
-                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                    <Icons.Calendar /> Gastos de este mes
-                                </h3>
+                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2"><Icons.Calendar /> Gastos de este mes</h3>
                                 <div className="space-y-4">
-                                    {timeline.length > 0 ? timeline.map(item => (
-                                        <div key={item.id} className="flex items-center gap-4 group">
+                                    {timeline.map(item => (
+                                        <div key={item.id} className="flex items-center gap-4">
                                             <div className="w-8 h-8 rounded-full bg-slate-50 border flex items-center justify-center shrink-0">
                                                 <span className="text-[10px] font-black text-slate-600">{item.dueDay || '–'}</span>
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
+                                                <p className="text-xs font-bold text-slate-800 truncate uppercase">{item.name}</p>
                                                 <div className="w-full bg-slate-100 h-1 rounded-full mt-1 overflow-hidden">
                                                     <div className={`h-full transition-all duration-1000 ${item.paid ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{ width: `${(item.amount / (Math.max(stats.totalSpent, stats.income) || 1)) * 100}%` }}></div>
                                                 </div>
                                             </div>
                                             <span className={`text-[10px] font-black ${item.paid ? 'text-emerald-500' : 'text-slate-400'}`}>{formatCurrency(item.amount)}</span>
                                         </div>
-                                    )) : <p className="text-center text-slate-400 text-xs italic py-4">No hay vencimientos fijos cargados.</p>}
+                                    ))}
                                 </div>
                             </div>
-
                             <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 card-shadow">
-                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                    <Icons.Shopping /> Análisis por Categoría
-                                </h3>
+                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2"><Icons.Shopping /> Análisis por Categoría</h3>
                                 <div className="space-y-4">
                                     {byCategory.map(([cat, amount]) => (
                                         <div key={cat} className="space-y-2">
@@ -523,9 +534,7 @@
                     ) : (
                         <div className="space-y-6">
                             <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 card-shadow overflow-hidden">
-                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8 flex items-center gap-2">
-                                    <Icons.Chart /> Evolución: Cobros vs Salidas
-                                </h3>
+                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8 flex items-center gap-2"><Icons.Chart /> Evolución: Cobros vs Salidas</h3>
                                 <div className="flex items-end justify-between h-48 px-2">
                                     {trendData.map((d, idx) => {
                                         const max = Math.max(...trendData.map(x => Math.max(x.income, x.expenses)));
@@ -534,8 +543,8 @@
                                         return (
                                             <div key={idx} className="flex flex-col items-center gap-2 w-full">
                                                 <div className="flex gap-1 items-end h-32 w-full justify-center">
-                                                    <div title={`Ingreso: ${formatCurrency(d.income)}`} className="w-3 bg-emerald-400 rounded-t-sm transition-all duration-700" style={{ height: `${hIn}%` }}></div>
-                                                    <div title={`Gasto: ${formatCurrency(d.expenses)}`} className="w-3 bg-rose-400 rounded-t-sm transition-all duration-700" style={{ height: `${hEx}%` }}></div>
+                                                    <div title={formatCurrency(d.income)} className="w-3 bg-emerald-400 rounded-t-sm transition-all" style={{ height: `${hIn}%` }}></div>
+                                                    <div title={formatCurrency(d.expenses)} className="w-3 bg-rose-400 rounded-t-sm transition-all" style={{ height: `${hEx}%` }}></div>
                                                 </div>
                                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{d.label}</span>
                                             </div>
@@ -543,28 +552,14 @@
                                     })}
                                 </div>
                             </div>
-
-                            {/* Análisis de Gasto Específico */}
                             <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 card-shadow overflow-hidden">
                                 <div className="flex flex-col gap-4 mb-8">
-                                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                        <Icons.Chart /> Comparativa de Gasto Fijo
-                                    </h3>
-                                    <select 
-                                        value={selectedRecurringName} 
-                                        onChange={(e) => {
-                                            setSelectedRecurringName(e.target.value);
-                                            setActiveBarIdx(null);
-                                        }}
-                                        className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black text-slate-600 outline-none focus:ring-2 focus:ring-slate-900/10 transition-all appearance-none"
-                                    >
+                                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Icons.Chart /> Comparativa de Gasto Fijo</h3>
+                                    <select value={selectedRecurringName} onChange={(e) => {setSelectedRecurringName(e.target.value); setActiveBarIdx(null);}} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black text-slate-600 outline-none focus:ring-2 focus:ring-slate-900/10 transition-all appearance-none">
                                         <option value="">Elegir un gasto para comparar...</option>
-                                        {recurringNames.map(name => (
-                                            <option key={name} value={name}>{name}</option>
-                                        ))}
+                                        {recurringNames.map(name => (<option key={name} value={name}>{name}</option>))}
                                     </select>
                                 </div>
-
                                 {selectedRecurringName ? (
                                     <div className="animate-fade-in">
                                         <div className="flex items-end justify-between h-40 px-2 mb-6">
@@ -572,36 +567,18 @@
                                                 const max = Math.max(...specificExpenseTrend.map(x => x.amount));
                                                 const h = (d.amount / (max || 1)) * 100;
                                                 return (
-                                                    <div 
-                                                        key={idx} 
-                                                        className="flex flex-col items-center gap-2 w-full cursor-pointer group"
-                                                        onClick={() => setActiveBarIdx(activeBarIdx === idx ? null : idx)}
-                                                    >
+                                                    <div key={idx} className="flex flex-col items-center gap-2 w-full cursor-pointer" onClick={() => setActiveBarIdx(activeBarIdx === idx ? null : idx)}>
                                                         <div className="flex items-end h-32 w-full justify-center relative">
-                                                            {activeBarIdx === idx && (
-                                                                <div className="absolute -top-6 bg-slate-900 text-white text-[8px] px-1.5 py-0.5 rounded-md font-black animate-fade-in whitespace-nowrap z-20 shadow-md">
-                                                                    {formatCurrency(d.amount)}
-                                                                </div>
-                                                            )}
-                                                            <div 
-                                                                className={`w-5 bg-amber-400 rounded-t-lg transition-all duration-300 ${activeBarIdx === idx ? 'bg-amber-600 scale-x-125 shadow-lg' : 'hover:bg-amber-500'}`} 
-                                                                style={{ height: `${h}%` }}
-                                                            ></div>
+                                                            {activeBarIdx === idx && (<div className="absolute -top-6 bg-slate-900 text-white text-[8px] px-1.5 py-0.5 rounded-md font-black animate-fade-in whitespace-nowrap z-20 shadow-md">{formatCurrency(d.amount)}</div>)}
+                                                            <div className={`w-5 bg-amber-400 rounded-t-lg transition-all duration-300 ${activeBarIdx === idx ? 'bg-amber-600 scale-x-125 shadow-lg' : 'hover:bg-amber-500'}`} style={{ height: `${h}%` }}></div>
                                                         </div>
                                                         <span className={`text-[8px] font-black uppercase tracking-tighter ${activeBarIdx === idx ? 'text-slate-900' : 'text-slate-400'}`}>{d.label}</span>
                                                     </div>
                                                 );
                                             })}
                                         </div>
-                                        <p className="text-[9px] text-center font-bold text-slate-400 uppercase tracking-widest">
-                                            Toca una barra para ver el importe
-                                        </p>
                                     </div>
-                                ) : (
-                                    <div className="py-10 text-center text-slate-300 text-xs italic">
-                                        Selecciona un ítem de la lista para ver su evolución mensual.
-                                    </div>
-                                )}
+                                ) : (<div className="py-10 text-center text-slate-300 text-xs italic">Selecciona un ítem para ver su evolución.</div>)}
                             </div>
                         </div>
                     )}
@@ -609,11 +586,12 @@
             );
         };
 
-        const ListView = ({ title, type, items, onAdd, onDelete, onUpdate, onToggle, placeholder, accent, showCheck, showDueDay, showCategories }) => {
+        const ListView = ({ title, type, items, onAdd, onDelete, onUpdate, onToggle, placeholder, accent, showCheck, showDueDay, showCategories, showDatePicker }) => {
             const [newName, setNewName] = useState('');
             const [newAmountStr, setNewAmountStr] = useState('');
             const [newDueDay, setNewDueDay] = useState('');
             const [newCategory, setNewCategory] = useState('General');
+            const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
 
             const categories = type === 'recurring' ? CATEGORIES_RECURRING : CATEGORIES_DAILY;
 
@@ -632,7 +610,8 @@
                     dueDay: showDueDay ? (parseInt(newDueDay) || '') : '',
                     category: newCategory,
                     type, 
-                    paid: type === 'income' 
+                    paid: type === 'income',
+                    date: showDatePicker ? new Date(newDate).toISOString() : null
                 });
                 setNewName(''); setNewAmountStr(''); setNewDueDay('');
             };
@@ -641,7 +620,7 @@
                 if (type === 'recurring') {
                     return [...items].sort((a,b) => (a.dueDay || 99) - (b.dueDay || 99));
                 }
-                return items;
+                return items.sort((a,b) => new Date(b.date) - new Date(a.date));
             }, [items, type]);
 
             return (
@@ -652,9 +631,17 @@
                     </div>
 
                     <form onSubmit={handleAdd} className="bg-white p-5 md:p-6 rounded-[2rem] border border-slate-200 card-shadow flex flex-col gap-4">
-                        <div className="space-y-1">
-                            <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Descripción</label>
-                            <input className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-200 transition-all placeholder:text-slate-300" placeholder={placeholder} value={newName} onChange={e => setNewName(e.target.value)} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Descripción</label>
+                                <input className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-200 transition-all placeholder:text-slate-300" placeholder={placeholder} value={newName} onChange={e => setNewName(e.target.value)} />
+                            </div>
+                            {showDatePicker && (
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Fecha</label>
+                                    <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium outline-none" />
+                                </div>
+                            )}
                         </div>
                         
                         <div className="grid grid-cols-12 gap-3 items-end">
@@ -711,50 +698,29 @@
         };
 
         const ItemCard = ({ item, accent, onDel, onEdit, onToggle, showCheck, showDueDay }) => {
-            const borderColors = {
-                emerald: "border-emerald-500",
-                rose: "border-rose-500",
-                amber: "border-amber-500",
-                slate: "border-slate-500"
-            };
-
+            const borderColors = { emerald: "border-emerald-500", rose: "border-rose-500", amber: "border-amber-500", slate: "border-slate-500" };
             const categories = item.type === 'recurring' ? CATEGORIES_RECURRING : CATEGORIES_DAILY;
 
             return (
                 <div className={`bg-white p-5 rounded-[1.5rem] border-l-[10px] ${borderColors[accent]} card-shadow flex items-center justify-between gap-4 transition-all ${item.paid && showCheck ? 'opacity-30 grayscale scale-[0.98]' : 'hover:-translate-y-0.5'}`}>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center flex-wrap gap-2 mb-1">
-                            <input 
-                                className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-transparent outline-none focus:text-slate-900 w-full md:w-auto md:min-w-[150px]" 
-                                value={item.name} 
-                                onChange={e => onEdit('name', e.target.value)} 
-                            />
+                            <input className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-transparent outline-none focus:text-slate-900 w-full md:w-auto md:min-w-[150px]" value={item.name} onChange={e => onEdit('name', e.target.value)} />
                             <div className="flex gap-2 shrink-0">
-                                {showDueDay && (
+                                {showDueDay ? (
                                     <div className="flex items-center bg-slate-50 rounded-md px-1.5 py-0.5 border border-slate-200">
                                         <span className="text-[8px] font-black text-slate-500 mr-1.5 uppercase tracking-tighter">Vto:</span>
-                                        <input 
-                                            type="number" 
-                                            min="1" max="31"
-                                            className="bg-transparent text-[10px] font-black text-slate-700 outline-none w-5 text-center"
-                                            value={item.dueDay || ''}
-                                            onChange={e => onEdit('dueDay', e.target.value)}
-                                        />
+                                        <input type="number" min="1" max="31" className="bg-transparent text-[10px] font-black text-slate-700 outline-none w-5 text-center" value={item.dueDay || ''} onChange={e => onEdit('dueDay', e.target.value)} />
+                                    </div>
+                                ) : (
+                                    <div className="text-[8px] font-black text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border">
+                                        {new Date(item.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}
                                     </div>
                                 )}
-                                
                                 {item.type !== 'income' && (
-                                    <div className="relative group/cat">
-                                        <select 
-                                            value={item.category || 'General'}
-                                            onChange={(e) => onEdit('category', e.target.value)}
-                                            className={`text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border transition-all appearance-none cursor-pointer outline-none ${item.category === 'General' ? 'bg-rose-50 text-rose-400 border-rose-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}
-                                        >
-                                            {categories.map(cat => (
-                                                <option key={cat} value={cat}>{cat}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                    <select value={item.category || 'General'} onChange={(e) => onEdit('category', e.target.value)} className={`text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border transition-all appearance-none cursor-pointer outline-none ${item.category === 'General' ? 'bg-rose-50 text-rose-400 border-rose-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                                        {categories.map(cat => (<option key={cat} value={cat}>{cat}</option>))}
+                                    </select>
                                 )}
                             </div>
                         </div>
@@ -769,7 +735,7 @@
                                 <Icons.Check />
                             </button>
                         )}
-                        <button onClick={onDel} className="p-3 text-slate-800 hover:text-rose-600 hover:bg-rose-50 border-2 border-slate-300 rounded-2xl transition-all shadow-sm">
+                        <button onClick={onDel} className="p-3 text-slate-800 hover:text-rose-600 hover:bg-rose-50 border-2 border-slate-200 rounded-2xl transition-all shadow-sm">
                             <Icons.Trash />
                         </button>
                     </div>
@@ -779,32 +745,10 @@
 
         const CurrencyInput = ({ value, onChange }) => {
             const [display, setDisplay] = useState('');
-
-            useEffect(() => {
-                setDisplay(new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2 }).format(value || 0));
-            }, [value]);
-
-            const handleChange = (e) => {
-                const raw = e.target.value.replace(/[^0-9,]/g, '');
-                setDisplay(raw);
-            };
-
-            const handleBlur = () => {
-                const num = parseLocaleNumber(display);
-                onChange(num);
-                setDisplay(new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2 }).format(num));
-            };
-
-            return (
-                <input 
-                    type="text" 
-                    className="bg-transparent outline-none w-full" 
-                    value={display} 
-                    onChange={handleChange} 
-                    onBlur={handleBlur}
-                    placeholder="0,00"
-                />
-            );
+            useEffect(() => { setDisplay(new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2 }).format(value || 0)); }, [value]);
+            const handleChange = (e) => { const raw = e.target.value.replace(/[^0-9,]/g, ''); setDisplay(raw); };
+            const handleBlur = () => { const num = parseLocaleNumber(display); onChange(num); setDisplay(new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2 }).format(num)); };
+            return ( <input type="text" className="bg-transparent outline-none w-full" value={display} onChange={handleChange} onBlur={handleBlur} placeholder="0,00" /> );
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
