@@ -216,7 +216,7 @@
                             amount: 0, 
                             dueDay: item.dueDay || '',
                             type: item.type,
-                            category: item.category || 'General', // SE IMPORTA LA CATEGORÍA
+                            category: item.category || 'General',
                             paid: item.type === 'income', 
                             date: navDate.toISOString()
                         });
@@ -396,6 +396,7 @@
         const AnalysisView = ({ stats, allItems, currentMonthItems, navDate }) => {
             const [mode, setMode] = useState('month');
             const [selectedRecurringName, setSelectedRecurringName] = useState('');
+            const [activeBarIdx, setActiveBarIdx] = useState(null); // Para mostrar importe en gráfico de tendencia
 
             // Nombres únicos de gastos recurrentes para el selector
             const recurringNames = useMemo(() => {
@@ -414,10 +415,11 @@
                 return Object.entries(cats).sort((a,b) => b[1] - a[1]);
             }, [currentMonthItems]);
 
+            // Ordenado de mayor a menor importe
             const timeline = useMemo(() => {
                 return currentMonthItems
                     .filter(i => i.type === 'recurring')
-                    .sort((a,b) => (a.dueDay || 0) - (b.dueDay || 0));
+                    .sort((a,b) => (parseFloat(b.amount) || 0) - (parseFloat(a.amount) || 0));
             }, [currentMonthItems]);
 
             const trendData = useMemo(() => {
@@ -490,7 +492,7 @@
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
                                                 <div className="w-full bg-slate-100 h-1 rounded-full mt-1 overflow-hidden">
-                                                    <div className={`h-full transition-all duration-1000 ${item.paid ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{ width: `${(item.amount / (stats.income || 1)) * 100}%` }}></div>
+                                                    <div className={`h-full transition-all duration-1000 ${item.paid ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{ width: `${(item.amount / (Math.max(stats.totalSpent, stats.income) || 1)) * 100}%` }}></div>
                                                 </div>
                                             </div>
                                             <span className={`text-[10px] font-black ${item.paid ? 'text-emerald-500' : 'text-slate-400'}`}>{formatCurrency(item.amount)}</span>
@@ -550,7 +552,10 @@
                                     </h3>
                                     <select 
                                         value={selectedRecurringName} 
-                                        onChange={(e) => setSelectedRecurringName(e.target.value)}
+                                        onChange={(e) => {
+                                            setSelectedRecurringName(e.target.value);
+                                            setActiveBarIdx(null);
+                                        }}
                                         className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black text-slate-600 outline-none focus:ring-2 focus:ring-slate-900/10 transition-all appearance-none"
                                     >
                                         <option value="">Elegir un gasto para comparar...</option>
@@ -567,17 +572,29 @@
                                                 const max = Math.max(...specificExpenseTrend.map(x => x.amount));
                                                 const h = (d.amount / (max || 1)) * 100;
                                                 return (
-                                                    <div key={idx} className="flex flex-col items-center gap-2 w-full">
-                                                        <div className="flex items-end h-32 w-full justify-center">
-                                                            <div title={`${d.label}: ${formatCurrency(d.amount)}`} className="w-5 bg-amber-400 rounded-t-lg transition-all duration-700" style={{ height: `${h}%` }}></div>
+                                                    <div 
+                                                        key={idx} 
+                                                        className="flex flex-col items-center gap-2 w-full cursor-pointer group"
+                                                        onClick={() => setActiveBarIdx(activeBarIdx === idx ? null : idx)}
+                                                    >
+                                                        <div className="flex items-end h-32 w-full justify-center relative">
+                                                            {activeBarIdx === idx && (
+                                                                <div className="absolute -top-6 bg-slate-900 text-white text-[8px] px-1.5 py-0.5 rounded-md font-black animate-fade-in whitespace-nowrap z-20 shadow-md">
+                                                                    {formatCurrency(d.amount)}
+                                                                </div>
+                                                            )}
+                                                            <div 
+                                                                className={`w-5 bg-amber-400 rounded-t-lg transition-all duration-300 ${activeBarIdx === idx ? 'bg-amber-600 scale-x-125 shadow-lg' : 'hover:bg-amber-500'}`} 
+                                                                style={{ height: `${h}%` }}
+                                                            ></div>
                                                         </div>
-                                                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{d.label}</span>
+                                                        <span className={`text-[8px] font-black uppercase tracking-tighter ${activeBarIdx === idx ? 'text-slate-900' : 'text-slate-400'}`}>{d.label}</span>
                                                     </div>
                                                 );
                                             })}
                                         </div>
                                         <p className="text-[9px] text-center font-bold text-slate-400 uppercase tracking-widest">
-                                            Evolución de "{selectedRecurringName}" últimos 6 meses
+                                            Toca una barra para ver el importe
                                         </p>
                                     </div>
                                 ) : (
@@ -726,7 +743,6 @@
                                     </div>
                                 )}
                                 
-                                {/* Etiqueta editable (Selector) */}
                                 {item.type !== 'income' && (
                                     <div className="relative group/cat">
                                         <select 
