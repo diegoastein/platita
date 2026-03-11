@@ -38,12 +38,12 @@
 
         // --- CONFIGURACIÓN DE FIREBASE ---
         const config = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-           apiKey: "AIzaSyB_iAkA30kQKiavpJnB0zTpRXUr7aCzA7k",
-  authDomain: "platita-3fcc5.firebaseapp.com",
-  projectId: "platita-3fcc5",
-  storageBucket: "platita-3fcc5.firebasestorage.app",
-  messagingSenderId: "93396692454",
-  appId: "1:93396692454:web:acc81d633c3dd3ae27fa27"
+            apiKey: "AIzaSyB_iAkA30kQKiavpJnB0zTpRXUr7aCzA7k",
+            authDomain: "platita-3fcc5.firebaseapp.com",
+            projectId: "platita-3fcc5",
+            storageBucket: "platita-3fcc5.firebasestorage.app",
+            messagingSenderId: "93396692454",
+            appId: "1:93396692454:web:acc81d633c3dd3ae27fa27"
         };
 
         if (!firebase.apps.length) {
@@ -69,6 +69,7 @@
             const [view, setView] = useState('dashboard');
             const [items, setItems] = useState([]);
             const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
             const [selectedMonth] = useState(new Date().getMonth());
             const [selectedYear] = useState(new Date().getFullYear());
 
@@ -80,13 +81,23 @@
                         } else {
                             await auth.signInAnonymously();
                         }
-                    } catch (e) { console.error("Auth error", e); }
+                    } catch (e) { 
+                        console.error("Auth error", e);
+                        setError(`Error de autenticación: ${e.message}. Asegúrate de habilitar el inicio de sesión anónimo y autorizar el dominio en Firebase.`);
+                        setLoading(false);
+                    }
                 };
                 initAuth();
-                return auth.onAuthStateChanged(setUser);
+                const unsubscribe = auth.onAuthStateChanged((u) => {
+                    setUser(u);
+                    if (!u && !loading) {
+                        // Si después del intento no hay usuario, detenemos la carga para mostrar el error si existe
+                        setLoading(false);
+                    }
+                });
+                return () => unsubscribe();
             }, []);
 
-            // Referencia dinámica a la colección privada del usuario
             const getUserCollection = () => {
                 if (!user) return null;
                 return db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions');
@@ -100,8 +111,10 @@
                     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     setItems(data);
                     setLoading(false);
-                }, (error) => {
-                    console.error("Firestore Error:", error);
+                    setError(null);
+                }, (err) => {
+                    console.error("Firestore Error:", err);
+                    setError(`Error de base de datos: ${err.message}. Revisa tus reglas de seguridad de Firestore.`);
                     setLoading(false);
                 });
 
@@ -153,9 +166,19 @@
             };
 
             if (loading) return (
-                <div className="flex flex-col h-screen items-center justify-center bg-white">
+                <div className="flex flex-col h-screen items-center justify-center bg-white p-6 text-center">
                     <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
                     <p className="text-slate-500 font-medium text-sm">Sincronizando con Firebase...</p>
+                    <p className="text-slate-400 text-xs mt-2">Si esto tarda demasiado, verifica la configuración de tu dominio en la consola de Firebase.</p>
+                </div>
+            );
+
+            if (error) return (
+                <div className="flex flex-col h-screen items-center justify-center bg-white p-8 text-center">
+                    <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-4 text-2xl font-bold">!</div>
+                    <h2 className="text-lg font-bold text-slate-800 mb-2">Error de Conexión</h2>
+                    <p className="text-slate-500 text-sm mb-6">{error}</p>
+                    <button onClick={() => window.location.reload()} className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold text-sm">Reintentar</button>
                 </div>
             );
 
