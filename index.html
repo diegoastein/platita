@@ -93,7 +93,8 @@
             Analysis: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2v2m3 10v-3a2 2 0 012-2h2a2 2 0 012 2v3m2 0h-5m-9 0H3m9 0a9 9 0 0118 0v1H3v-1z" /></svg>,
             Eye: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>,
             EyeOff: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>,
-            Chart: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>
+            Chart: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>,
+            Refresh: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h5M20 20v-5h-5M20 4.24a9 9 0 101.44 10.37" /></svg>
         };
 
         const App = () => {
@@ -199,7 +200,7 @@
                 });
             };
 
-            const importPreviousMonth = async () => {
+            const importPreviousMonth = async (overwrite = false) => {
                 const col = getUserCollection();
                 if (!col) return;
 
@@ -214,11 +215,23 @@
                 });
 
                 if (prevItems.length === 0) {
-                    alert("No hay registros fijos para copiar.");
+                    alert("No hay registros fijos para copiar del mes anterior.");
                     return;
                 }
 
-                if (confirm(`¿Importar registros del mes pasado? También se arrastrarán saldos pendientes de tarjetas.`)) {
+                const confirmMsg = overwrite 
+                    ? `Esto reemplazará los cobros y gastos fijos de este mes por los del mes pasado ($0). ¿Continuar?`
+                    : `¿Importar registros del mes pasado? También se arrastrarán saldos pendientes de tarjetas.`;
+
+                if (confirm(confirmMsg)) {
+                    // Si es sobreescritura, borrar los actuales primero
+                    if (overwrite) {
+                        const toDelete = currentMonthItems.filter(i => i.type === 'income' || i.type === 'recurring');
+                        for (const item of toDelete) {
+                            await col.doc(item.id).delete();
+                        }
+                    }
+
                     for (const item of prevItems) {
                         // Importar base
                         await add({
@@ -341,15 +354,15 @@
                                 <div className="bg-white/10 p-3 rounded-full mb-3"><Icons.Copy /></div>
                                 <h3 className="text-lg font-black mb-1">Iniciá el mes</h3>
                                 <p className="text-slate-400 text-xs mb-6 text-balance px-4">Importá tus registros fijos del mes anterior para empezar.</p>
-                                <button onClick={importPreviousMonth} className="bg-white text-slate-900 px-8 py-3 rounded-xl font-black text-xs active:scale-95 transition-all">Importar plantilla</button>
+                                <button onClick={() => importPreviousMonth(false)} className="bg-white text-slate-900 px-8 py-3 rounded-xl font-black text-xs active:scale-95 transition-all">Importar plantilla</button>
                             </div>
                         )}
 
                         <div className="max-w-3xl mx-auto space-y-6">
                             {view === 'dashboard' && <Summary stats={stats} />}
                             {view === 'analysis' && <AnalysisView stats={stats} allItems={items} currentMonthItems={currentMonthItems} navDate={navDate} />}
-                            {view === 'income' && <ListView title="Cobros e Ingresos" type="income" items={currentMonthItems.filter(i => i.type === 'income')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Descripción" accent="emerald" />}
-                            {view === 'recurring' && <ListView title="Gastos Fijos" type="recurring" items={currentMonthItems.filter(i => i.type === 'recurring')} onAdd={add} onDelete={del} onUpdate={updateField} onToggle={toggle} placeholder="Descripción" accent="amber" showCheck showDueDay showCategories />}
+                            {view === 'income' && <ListView title="Cobros e Ingresos" type="income" items={currentMonthItems.filter(i => i.type === 'income')} onAdd={add} onDelete={del} onUpdate={updateField} onSync={() => importPreviousMonth(true)} placeholder="Descripción" accent="emerald" />}
+                            {view === 'recurring' && <ListView title="Gastos Fijos" type="recurring" items={currentMonthItems.filter(i => i.type === 'recurring')} onAdd={add} onDelete={del} onUpdate={updateField} onToggle={toggle} onSync={() => importPreviousMonth(true)} placeholder="Descripción" accent="amber" showCheck showDueDay showCategories />}
                             {view === 'daily' && <ListView title="Gastos Diarios" type="daily" items={currentMonthItems.filter(i => i.type === 'daily')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Detalle" accent="rose" showCategories showDatePicker />}
                         </div>
                     </main>
@@ -576,7 +589,7 @@
             );
         };
 
-        const ListView = ({ title, type, items, onAdd, onDelete, onUpdate, onToggle, placeholder, accent, showCheck, showDueDay, showCategories, showDatePicker }) => {
+        const ListView = ({ title, type, items, onAdd, onDelete, onUpdate, onToggle, onSync, placeholder, accent, showCheck, showDueDay, showCategories, showDatePicker }) => {
             const [newName, setNewName] = useState('');
             const [newAmountStr, setNewAmountStr] = useState('');
             const [newDueDay, setNewDueDay] = useState('');
@@ -616,7 +629,18 @@
             return (
                 <div className="space-y-5 animate-fade-in pb-10">
                     <div className="flex justify-between items-center ml-1">
-                        <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{title}</h2>
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{title}</h2>
+                            {onSync && (
+                                <button 
+                                    onClick={onSync}
+                                    title="Sincronizar con el mes pasado"
+                                    className="p-1 text-slate-400 hover:text-slate-900 transition-colors"
+                                >
+                                    <Icons.Refresh />
+                                </button>
+                            )}
+                        </div>
                         <span className="text-[9px] font-black text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-100 uppercase tracking-tighter">{items.length} regs.</span>
                     </div>
 
@@ -672,6 +696,12 @@
             const borderColors = { emerald: "border-emerald-500", rose: "border-rose-500", amber: "border-amber-500", slate: "border-slate-500" };
             const categories = item.type === 'recurring' ? CATEGORIES_RECURRING : CATEGORIES_DAILY;
 
+            // Determinar si es una tarjeta de crédito para habilitar pago parcial
+            const isCreditCard = useMemo(() => {
+                const name = (item.name || "").toLowerCase();
+                return name.includes("visa") || name.includes("mastercard") || item.category === "Tarjetas";
+            }, [item.name, item.category]);
+
             const handleToggle = (mode) => {
                 if (mode === 'partial' && !showPartialInput) {
                     setShowPartialInput(true);
@@ -718,7 +748,9 @@
                                     {!item.paid ? (
                                         <div className="flex gap-1">
                                             <button onClick={() => handleToggle('total')} className="p-3 rounded-2xl transition-all border-2 text-slate-800 hover:text-emerald-600 border-slate-100 hover:bg-emerald-50" title="Pago Total"><Icons.Check /></button>
-                                            <button onClick={() => setShowPartialInput(!showPartialInput)} className={`p-3 rounded-2xl transition-all border-2 ${showPartialInput ? 'bg-amber-50 text-amber-600 border-amber-300' : 'text-slate-800 hover:text-amber-600 border-slate-100 hover:bg-amber-50'}`} title="Pago Parcial">P</button>
+                                            {isCreditCard && (
+                                                <button onClick={() => setShowPartialInput(!showPartialInput)} className={`p-3 rounded-2xl transition-all border-2 ${showPartialInput ? 'bg-amber-50 text-amber-600 border-amber-300' : 'text-slate-800 hover:text-amber-600 border-slate-100 hover:bg-amber-50'}`} title="Pago Parcial">P</button>
+                                            )}
                                         </div>
                                     ) : (
                                         <button onClick={() => onToggle(item)} className="p-3 rounded-2xl transition-all border-2 text-emerald-700 bg-emerald-50 border-emerald-300"><Icons.Check /></button>
