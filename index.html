@@ -15,13 +15,13 @@
     <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
         body { background-color: #f8fafc; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
         input::-webkit-inner-spin-button, 
         input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         .glass-nav {
-            background: rgba(255, 255, 255, 0.85);
+            background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(12px);
             border-top: 1px solid rgba(0,0,0,0.05);
         }
@@ -71,7 +71,6 @@
 
         const parseLocaleNumber = (stringNumber) => {
             if (!stringNumber) return 0;
-            // Reemplaza puntos (miles) por nada y coma (decimal) por punto para parsing estándar
             const clean = stringNumber.toString()
                 .replace(/\./g, '')
                 .replace(',', '.');
@@ -91,7 +90,8 @@
             Copy: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>,
             Analysis: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2v2m3 10v-3a2 2 0 012-2h2a2 2 0 012 2v3m2 0h-5m-9 0H3m9 0a9 9 0 0118 0v1H3v-1z" /></svg>,
             Eye: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>,
-            EyeOff: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>
+            EyeOff: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>,
+            Chart: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>
         };
 
         const App = () => {
@@ -238,7 +238,11 @@
                 const col = getUserCollection();
                 if (!col) return;
                 const updateData = {};
-                updateData[field] = (field === 'amount' || field === 'dueDay') ? (parseFloat(value.toString().replace(',','.')) || 0) : value;
+                let finalVal = value;
+                if (field === 'amount' || field === 'dueDay') {
+                    finalVal = parseFloat(value.toString().replace(',','.')) || 0;
+                }
+                updateData[field] = finalVal;
                 await col.doc(id).update(updateData);
             };
 
@@ -251,7 +255,7 @@
 
             if (!user) return (
                 <div className="flex flex-col h-screen items-center justify-center bg-white p-8 text-center animate-fade-in">
-                    <div className="bg-slate-900 text-white p-5 rounded-[2rem] mb-6 shadow-2xl shadow-slate-200">
+                    <div className="bg-slate-900 text-white p-5 rounded-[2.5rem] mb-6 shadow-2xl shadow-slate-200">
                         <Icons.Wallet />
                     </div>
                     <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Platita</h1>
@@ -264,15 +268,15 @@
             );
 
             return (
-                <div className="max-w-md md:max-w-5xl mx-auto min-h-screen bg-slate-50 pb-28 md:pb-12 animate-fade-in relative">
-                    <header className="bg-white p-4 md:p-6 border-b border-slate-100 shadow-sm md:rounded-b-[2rem]">
+                <div className="max-w-md md:max-w-5xl mx-auto min-h-screen bg-slate-50 pb-32 md:pb-12 animate-fade-in relative">
+                    <header className="bg-white p-4 md:p-6 border-b border-slate-100 shadow-sm md:rounded-b-[2.5rem]">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 md:mb-6">
                             <div className="flex items-center justify-between md:justify-start gap-4">
                                 <h1 className="text-xl md:text-2xl font-black text-slate-900 flex items-center gap-1">
                                     <span className="bg-slate-900 text-white px-2.5 py-0.5 rounded-lg">P</span>
                                     Platita
                                 </h1>
-                                <button onClick={() => auth.signOut()} className="text-slate-500 hover:text-rose-500 transition-colors md:ml-4">
+                                <button onClick={() => auth.signOut()} className="text-slate-500 hover:text-rose-600 transition-colors md:ml-4">
                                     <Icons.Logout />
                                 </button>
                             </div>
@@ -286,6 +290,7 @@
                             </div>
                         </div>
 
+                        {/* Balance Card */}
                         <div className="bg-slate-900 rounded-[2rem] p-5 md:p-6 text-white card-shadow relative overflow-hidden flex flex-col items-center">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
                             
@@ -296,7 +301,7 @@
                                 {hideBalance ? <Icons.Eye /> : <Icons.EyeOff />}
                             </button>
 
-                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Disponible</p>
+                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Saldo Disponible</p>
                             <h2 className="text-3xl md:text-4xl font-black mb-4 tracking-tight">
                                 {formatCurrency(stats.balance, hideBalance)}
                             </h2>
@@ -307,11 +312,11 @@
 
                             <div className="grid grid-cols-2 gap-8 border-t border-white/10 pt-4 w-full max-w-sm">
                                 <div className="text-center">
-                                    <p className="text-slate-500 text-[9px] uppercase font-black mb-1 tracking-tighter">Ingresos</p>
+                                    <p className="text-slate-500 text-[9px] uppercase font-black mb-1 tracking-tighter">Cobros</p>
                                     <p className="text-emerald-400 font-black text-sm">{formatCurrency(stats.income, hideBalance)}</p>
                                 </div>
                                 <div className="text-center">
-                                    <p className="text-slate-500 text-[9px] uppercase font-black mb-1 tracking-tighter">Gastado</p>
+                                    <p className="text-slate-500 text-[9px] uppercase font-black mb-1 tracking-tighter">Salidas</p>
                                     <p className="text-rose-400 font-black text-sm">{formatCurrency(stats.totalSpent, hideBalance)}</p>
                                 </div>
                             </div>
@@ -323,7 +328,7 @@
                             <div className="bg-slate-900 p-8 rounded-[2rem] text-white flex flex-col items-center text-center animate-fade-in shadow-xl md:max-w-2xl mx-auto">
                                 <div className="bg-white/10 p-3 rounded-full mb-3"><Icons.Copy /></div>
                                 <h3 className="text-lg font-black mb-1">Iniciá el mes</h3>
-                                <p className="text-slate-400 text-xs mb-6">Copia tus sueldos y gastos fijos (en $0) del mes anterior.</p>
+                                <p className="text-slate-400 text-xs mb-6 text-balance px-4">Importá tus registros fijos (Sueldos, Expensas, etc.) del mes anterior para empezar.</p>
                                 <button onClick={importPreviousMonth} className="bg-white text-slate-900 px-8 py-3 rounded-xl font-black text-xs active:scale-95 transition-all">
                                     Importar plantilla
                                 </button>
@@ -332,13 +337,14 @@
 
                         <div className="max-w-3xl mx-auto space-y-6">
                             {view === 'dashboard' && <Summary stats={stats} />}
-                            {view === 'analysis' && <AnalysisView stats={stats} currentMonthItems={currentMonthItems} />}
-                            {view === 'income' && <ListView title="Cobros e Ingresos" type="income" items={currentMonthItems.filter(i => i.type === 'income')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Descripción (ej: Sueldo A)" accent="emerald" />}
-                            {view === 'recurring' && <ListView title="Gastos Fijos" type="recurring" items={currentMonthItems.filter(i => i.type === 'recurring')} onAdd={add} onDelete={del} onUpdate={updateField} onToggle={toggle} placeholder="Descripción (ej: Expensas)" accent="amber" showCheck showDueDay />}
-                            {view === 'daily' && <ListView title="Gastos Diarios" type="daily" items={currentMonthItems.filter(i => i.type === 'daily')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Detalle (ej: Farmacia)" accent="rose" showCategories />}
+                            {view === 'analysis' && <AnalysisView stats={stats} allItems={items} currentMonthItems={currentMonthItems} navDate={navDate} />}
+                            {view === 'income' && <ListView title="Cobros e Ingresos" type="income" items={currentMonthItems.filter(i => i.type === 'income')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Descripción (ej: Sueldo)" accent="emerald" />}
+                            {view === 'recurring' && <ListView title="Gastos Fijos (Vencimientos)" type="recurring" items={currentMonthItems.filter(i => i.type === 'recurring')} onAdd={add} onDelete={del} onUpdate={updateField} onToggle={toggle} placeholder="Descripción (ej: Expensas)" accent="amber" showCheck showDueDay showCategories />}
+                            {view === 'daily' && <ListView title="Gastos Diarios (Efectivo/Tarjeta)" type="daily" items={currentMonthItems.filter(i => i.type === 'daily')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Detalle (ej: Farmacia)" accent="rose" showCategories />}
                         </div>
                     </main>
 
+                    {/* Navegación Inferior */}
                     <nav className="fixed bottom-0 left-0 right-0 glass-nav z-30 md:bottom-8 md:left-1/2 md:-translate-x-1/2 md:w-fit md:rounded-full md:shadow-2xl md:border md:border-slate-200">
                         <div className="max-w-md md:max-w-none mx-auto flex justify-around md:justify-center md:gap-2 px-2 md:px-4 py-3 safe-area-bottom">
                             <NavTab active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<Icons.Wallet />} label="Inicio" />
@@ -361,20 +367,20 @@
 
         const Summary = ({ stats }) => (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
-                <SummaryCard title="A pagar pronto" amount={stats.recPending} icon={<Icons.Calendar />} color="amber" />
-                <SummaryCard title="Gastos Diarios" amount={stats.daily} icon={<Icons.Shopping />} color="rose" />
+                <SummaryCard title="Vencimientos Próximos" amount={stats.recPending} icon={<Icons.Calendar />} color="amber" />
+                <SummaryCard title="Gastos del Día" amount={stats.daily} icon={<Icons.Shopping />} color="rose" />
             </div>
         );
 
         const SummaryCard = ({ title, amount, icon, color }) => {
             const colors = {
-                amber: "bg-amber-50 text-amber-600",
-                rose: "bg-rose-50 text-rose-600",
-                emerald: "bg-emerald-50 text-emerald-600"
+                amber: "bg-amber-50 text-amber-600 border-amber-100",
+                rose: "bg-rose-50 text-rose-600 border-rose-100",
+                emerald: "bg-emerald-50 text-emerald-600 border-emerald-100"
             };
             return (
-                <div className="bg-white p-5 rounded-3xl border border-slate-100 flex items-center gap-4 card-shadow">
-                    <div className={`w-10 h-10 ${colors[color]} rounded-2xl flex items-center justify-center shrink-0`}>{icon}</div>
+                <div className={`bg-white p-5 rounded-[2rem] border ${colors[color]} flex items-center gap-4 card-shadow`}>
+                    <div className={`w-10 h-10 ${colors[color]} rounded-2xl flex items-center justify-center shrink-0 border`}>{icon}</div>
                     <div>
                         <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">{title}</p>
                         <p className="text-xl font-black text-slate-800 tracking-tight">{formatCurrency(amount)}</p>
@@ -383,37 +389,147 @@
             );
         };
 
-        const AnalysisView = ({ stats, currentMonthItems }) => {
-            const dailyByCategory = useMemo(() => {
+        const AnalysisView = ({ stats, allItems, currentMonthItems, navDate }) => {
+            const [mode, setMode] = useState('month'); // month | trend
+
+            // Distribución por categorías (Fijos + Diarios)
+            const byCategory = useMemo(() => {
                 const cats = {};
-                currentMonthItems.filter(i => i.type === 'daily').forEach(i => {
+                currentMonthItems.forEach(i => {
+                    if (i.type === 'income') return;
                     const c = i.category || 'General';
                     cats[c] = (cats[c] || 0) + (parseFloat(i.amount) || 0);
                 });
                 return Object.entries(cats).sort((a,b) => b[1] - a[1]);
             }, [currentMonthItems]);
 
+            // Cronograma de vencimientos (ordenado por día)
+            const timeline = useMemo(() => {
+                return currentMonthItems
+                    .filter(i => i.type === 'recurring')
+                    .sort((a,b) => (a.dueDay || 0) - (b.dueDay || 0));
+            }, [currentMonthItems]);
+
+            // Evolución histórica (últimos 6 meses)
+            const trendData = useMemo(() => {
+                const months = [];
+                for (let i = 5; i >= 0; i--) {
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - i);
+                    const m = d.getMonth();
+                    const y = d.getFullYear();
+                    
+                    const filtered = allItems.filter(item => {
+                        const itemDate = new Date(item.date);
+                        return itemDate.getMonth() === m && itemDate.getFullYear() === y;
+                    });
+
+                    const income = filtered.filter(f => f.type === 'income').reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0);
+                    const expenses = filtered.filter(f => f.type !== 'income' && (f.type !== 'recurring' || f.paid)).reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0);
+
+                    months.push({ 
+                        label: d.toLocaleString('es-ES', { month: 'short' }), 
+                        income, 
+                        expenses,
+                        balance: income - expenses 
+                    });
+                }
+                return months;
+            }, [allItems]);
+
             return (
-                <div className="space-y-6 animate-fade-in">
-                    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 card-shadow space-y-6">
-                        <ProgressBar label="Gastos Fijos" amount={stats.recPaid} total={stats.totalSpent} color="amber" />
-                        <ProgressBar label="Gastos Diarios" amount={stats.daily} total={stats.totalSpent} color="rose" />
+                <div className="space-y-6 animate-fade-in pb-10">
+                    <div className="flex bg-slate-100 p-1 rounded-2xl md:max-w-xs mx-auto">
+                        <button onClick={() => setMode('month')} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${mode === 'month' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Este Mes</button>
+                        <button onClick={() => setMode('trend')} className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${mode === 'trend' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>Tendencia</button>
                     </div>
 
-                    <div className="space-y-3">
-                        <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 text-center">Gasto por Categoría</h2>
-                        {dailyByCategory.map(([cat, amount]) => (
-                            <div key={cat} className="bg-white p-4 rounded-2xl border border-slate-100 card-shadow flex items-center justify-between">
-                                <div className="flex-1">
-                                    <p className="text-[10px] font-black text-slate-500 uppercase">{cat}</p>
-                                    <p className="text-lg font-bold text-slate-800">{formatCurrency(amount)}</p>
-                                </div>
-                                <div className="bg-slate-100 px-3 py-1 rounded-full text-[10px] font-black text-slate-500 uppercase">
-                                    {((amount / (stats.daily || 1)) * 100).toFixed(0)}%
+                    {mode === 'month' ? (
+                        <div className="space-y-6">
+                            {/* Cronograma */}
+                            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 card-shadow">
+                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <Icons.Calendar /> Cronograma de Vencimientos
+                                </h3>
+                                <div className="space-y-4">
+                                    {timeline.length > 0 ? timeline.map(item => (
+                                        <div key={item.id} className="flex items-center gap-4 group">
+                                            <div className="w-8 h-8 rounded-full bg-slate-50 border flex items-center justify-center shrink-0">
+                                                <span className="text-[10px] font-black text-slate-600">{item.dueDay || '–'}</span>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
+                                                <div className="w-full bg-slate-100 h-1 rounded-full mt-1 overflow-hidden">
+                                                    <div className={`h-full transition-all duration-1000 ${item.paid ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{ width: `${(item.amount / (stats.income || 1)) * 100}%` }}></div>
+                                                </div>
+                                            </div>
+                                            <span className={`text-[10px] font-black ${item.paid ? 'text-emerald-500' : 'text-slate-400'}`}>{formatCurrency(item.amount)}</span>
+                                        </div>
+                                    )) : <p className="text-center text-slate-400 text-xs italic py-4">No hay vencimientos fijos cargados.</p>}
                                 </div>
                             </div>
-                        ))}
-                    </div>
+
+                            {/* Gastos por Categoría */}
+                            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 card-shadow">
+                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <Icons.Shopping /> Análisis por Categoría
+                                </h3>
+                                <div className="space-y-4">
+                                    {byCategory.map(([cat, amount]) => (
+                                        <div key={cat} className="space-y-2">
+                                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-tighter">
+                                                <span className={`${cat === 'General' ? 'text-rose-400' : 'text-slate-600'}`}>{cat} {cat === 'General' && '⚠️'}</span>
+                                                <span className="text-slate-400">{formatCurrency(amount)}</span>
+                                            </div>
+                                            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                                <div className="h-full bg-slate-800 transition-all duration-1000" style={{ width: `${(amount / (stats.totalSpent || 1)) * 100}%` }}></div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {byCategory.length === 0 && <p className="text-center text-slate-400 text-xs italic py-4">Sin gastos registrados este mes.</p>}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            {/* Comparativa histórica */}
+                            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 card-shadow overflow-hidden">
+                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8 flex items-center gap-2">
+                                    <Icons.Chart /> Evolución: Ingresos vs Salidas
+                                </h3>
+                                <div className="flex items-end justify-between h-48 px-2">
+                                    {trendData.map((d, idx) => {
+                                        const max = Math.max(...trendData.map(x => Math.max(x.income, x.expenses)));
+                                        const hIn = (d.income / (max || 1)) * 100;
+                                        const hEx = (d.expenses / (max || 1)) * 100;
+                                        return (
+                                            <div key={idx} className="flex flex-col items-center gap-2 w-full">
+                                                <div className="flex gap-1 items-end h-32 w-full justify-center">
+                                                    <div title={`Ingreso: ${formatCurrency(d.income)}`} className="w-3 bg-emerald-400 rounded-t-sm transition-all duration-700" style={{ height: `${hIn}%` }}></div>
+                                                    <div title={`Gasto: ${formatCurrency(d.expenses)}`} className="w-3 bg-rose-400 rounded-t-sm transition-all duration-700" style={{ height: `${hEx}%` }}></div>
+                                                </div>
+                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{d.label}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div className="mt-8 pt-6 border-t border-slate-50 grid grid-cols-2 gap-4">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                                        <span className="text-[8px] font-black text-slate-500 uppercase">Ingresos</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-rose-400"></div>
+                                        <span className="text-[8px] font-black text-slate-500 uppercase">Salidas</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-8 text-center text-slate-400 text-xs border-2 border-dashed border-slate-200 rounded-[2.5rem]">
+                                <p>Tus finanzas se sincronizan automáticamente. Sigue cargando tus movimientos para obtener análisis más precisos.</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
@@ -443,8 +559,12 @@
             const [newDueDay, setNewDueDay] = useState('');
             const [newCategory, setNewCategory] = useState('General');
 
+            const categories = type === 'recurring' 
+                ? ["Hogar", "Servicios", "Impuestos", "Salud", "Educación", "General"]
+                : ["Comida", "Transporte", "Ocio", "Super", "Shopping", "General"];
+
             const handleAmountChange = (e) => {
-                const val = e.target.value.replace(/[^0-9,]/g, ''); // Permitir comas
+                const val = e.target.value.replace(/[^0-9,]/g, '');
                 setNewAmountStr(val);
             };
 
@@ -463,7 +583,6 @@
                 setNewName(''); setNewAmountStr(''); setNewDueDay('');
             };
 
-            // Ordenar por fecha de vencimiento si es necesario
             const sortedItems = useMemo(() => {
                 if (type === 'recurring') {
                     return [...items].sort((a,b) => (a.dueDay || 99) - (b.dueDay || 99));
@@ -472,16 +591,16 @@
             }, [items, type]);
 
             return (
-                <div className="space-y-4 animate-fade-in">
+                <div className="space-y-5 animate-fade-in pb-10">
                     <div className="flex justify-between items-center ml-1">
                         <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{title}</h2>
-                        <span className="text-[9px] font-black text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-100 uppercase">{items.length} regs.</span>
+                        <span className="text-[9px] font-black text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-100 uppercase tracking-tighter">{items.length} regs.</span>
                     </div>
 
                     <form onSubmit={handleAdd} className="bg-white p-5 md:p-6 rounded-[2rem] border border-slate-200 card-shadow flex flex-col gap-4">
                         <div className="space-y-1">
                             <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Descripción</label>
-                            <input className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-200 transition-all" placeholder={placeholder} value={newName} onChange={e => setNewName(e.target.value)} />
+                            <input className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-200 transition-all placeholder:text-slate-300" placeholder={placeholder} value={newName} onChange={e => setNewName(e.target.value)} />
                         </div>
                         
                         <div className="grid grid-cols-12 gap-3 items-end">
@@ -496,7 +615,7 @@
                             {showDueDay && (
                                 <div className="col-span-2 space-y-1 text-center">
                                     <label className="text-[9px] font-black text-slate-500 uppercase">Día</label>
-                                    <input type="number" min="1" max="31" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-black text-center outline-none" placeholder="15" value={newDueDay} onChange={e => setNewDueDay(e.target.value)} />
+                                    <input type="number" min="1" max="31" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-black text-center outline-none" placeholder="–" value={newDueDay} onChange={e => setNewDueDay(e.target.value)} />
                                 </div>
                             )}
 
@@ -508,10 +627,13 @@
                         </div>
 
                         {showCategories && (
-                            <div className="flex gap-2 overflow-x-auto py-1 no-scrollbar">
-                                {["General", "Comida", "Transporte", "Hogar", "Ocio", "Salud"].map(cat => (
-                                    <button key={cat} type="button" onClick={() => setNewCategory(cat)} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${newCategory === cat ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-500 border border-slate-100'}`}>{cat}</button>
-                                ))}
+                            <div className="space-y-1">
+                                <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Etiqueta / Categoría</label>
+                                <div className="flex gap-2 overflow-x-auto py-1 no-scrollbar">
+                                    {categories.map(cat => (
+                                        <button key={cat} type="button" onClick={() => setNewCategory(cat)} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${newCategory === cat ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-500 border border-slate-100 hover:bg-slate-200'}`}>{cat}</button>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </form>
@@ -545,25 +667,27 @@
             return (
                 <div className={`bg-white p-5 rounded-[1.5rem] border-l-[10px] ${borderColors[accent]} card-shadow flex items-center justify-between gap-4 transition-all ${item.paid && showCheck ? 'opacity-30 grayscale scale-[0.98]' : 'hover:-translate-y-0.5'}`}>
                     <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center flex-wrap gap-2 mb-1">
                             <input 
-                                className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-transparent outline-none focus:text-slate-900 w-full" 
+                                className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-transparent outline-none focus:text-slate-900 w-full md:w-auto md:min-w-[150px]" 
                                 value={item.name} 
                                 onChange={e => onEdit('name', e.target.value)} 
                             />
-                            {showDueDay && (
-                                <div className="flex items-center bg-slate-100 rounded-md px-1.5 py-0.5 shrink-0 border border-slate-200">
-                                    <span className="text-[8px] font-black text-slate-500 mr-1.5 uppercase tracking-tighter">Vto:</span>
-                                    <input 
-                                        type="number" 
-                                        min="1" max="31"
-                                        className="bg-transparent text-[10px] font-black text-slate-700 outline-none w-5 text-center"
-                                        value={item.dueDay || ''}
-                                        onChange={e => onEdit('dueDay', e.target.value)}
-                                    />
-                                </div>
-                            )}
-                            {item.category && !showDueDay && <span className="text-[8px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-500 font-bold uppercase tracking-widest border border-slate-200">{item.category}</span>}
+                            <div className="flex gap-2 shrink-0">
+                                {showDueDay && (
+                                    <div className="flex items-center bg-slate-50 rounded-md px-1.5 py-0.5 border border-slate-200">
+                                        <span className="text-[8px] font-black text-slate-500 mr-1.5 uppercase tracking-tighter">Vto:</span>
+                                        <input 
+                                            type="number" 
+                                            min="1" max="31"
+                                            className="bg-transparent text-[10px] font-black text-slate-700 outline-none w-5 text-center"
+                                            value={item.dueDay || ''}
+                                            onChange={e => onEdit('dueDay', e.target.value)}
+                                        />
+                                    </div>
+                                )}
+                                {item.category && <span className={`text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border ${item.category === 'General' ? 'bg-rose-50 text-rose-400 border-rose-100' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>{item.category}</span>}
+                            </div>
                         </div>
                         <div className="flex items-center text-2xl font-black text-slate-900 tracking-tighter">
                             <span className="text-slate-400 mr-1.5">$</span>
@@ -572,11 +696,11 @@
                     </div>
                     <div className="flex gap-2 shrink-0">
                         {showCheck && (
-                            <button onClick={onToggle} className={`p-3 rounded-2xl transition-all border-2 ${item.paid ? 'text-emerald-700 bg-emerald-50 border-emerald-300' : 'text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 border-slate-300'}`}>
+                            <button onClick={onToggle} className={`p-3 rounded-2xl transition-all border-2 ${item.paid ? 'text-emerald-700 bg-emerald-100 border-emerald-300' : 'text-slate-800 hover:text-emerald-600 hover:bg-emerald-50 border-slate-200 shadow-sm'}`}>
                                 <Icons.Check />
                             </button>
                         )}
-                        <button onClick={onDel} className="p-3 text-slate-700 hover:text-rose-600 hover:bg-rose-50 border-2 border-slate-300 rounded-2xl transition-all">
+                        <button onClick={onDel} className="p-3 text-slate-800 hover:text-rose-600 hover:bg-rose-50 border-2 border-slate-200 rounded-2xl transition-all shadow-sm">
                             <Icons.Trash />
                         </button>
                     </div>
@@ -593,7 +717,7 @@
 
             const handleChange = (e) => {
                 const raw = e.target.value.replace(/[^0-9,]/g, '');
-                setDisplay(raw); // Permitir visualización temporal con coma
+                setDisplay(raw);
             };
 
             const handleBlur = () => {
