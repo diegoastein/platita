@@ -59,8 +59,8 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'mi-app-finanzas-v1';
 
         // --- UTILIDADES ---
-        const formatCurrency = (val, show = true) => {
-            if (!show) return "$ ••••••";
+        const formatCurrency = (val, mask = false) => {
+            if (mask) return "$ ••••••";
             return new Intl.NumberFormat('es-AR', { 
                 style: 'currency', 
                 currency: 'ARS',
@@ -70,17 +70,18 @@
         };
 
         const parseLocaleNumber = (stringNumber) => {
+            if (!stringNumber) return 0;
             const clean = stringNumber.toString().replace(/[^0-9]/g, '');
             return parseFloat(clean) || 0;
         };
 
         const Icons = {
             Wallet: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>,
-            Calendar: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z" /></svg>,
+            Calendar: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
             Shopping: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>,
-            Trash: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+            Trash: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
             Plus: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
-            Check: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>,
+            Check: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>,
             Logout: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>,
             ChevronLeft: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>,
             ChevronRight: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>,
@@ -97,7 +98,7 @@
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState(null);
             const [navDate, setNavDate] = useState(new Date());
-            const [showValues, setShowValues] = useState(false); // Por defecto oculto
+            const [hideBalance, setHideBalance] = useState(true); // Solo para el header negro
 
             const selectedMonth = navDate.getMonth();
             const selectedYear = navDate.getFullYear();
@@ -201,7 +202,7 @@
                     return;
                 }
 
-                if (confirm(`¿Importar ${prevItems.length} registros (en $0) del mes anterior?`)) {
+                if (confirm(`¿Importar ${prevItems.length} registros (con montos en cero) del mes anterior?`)) {
                     for (const item of prevItems) {
                         await add({
                             name: item.name,
@@ -261,7 +262,6 @@
 
             return (
                 <div className="max-w-md md:max-w-5xl mx-auto min-h-screen bg-slate-50 pb-28 md:pb-12 animate-fade-in relative">
-                    {/* Header No Fijo */}
                     <header className="bg-white p-4 md:p-6 border-b border-slate-100 shadow-sm md:rounded-b-[2rem]">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 md:mb-6">
                             <div className="flex items-center justify-between md:justify-start gap-4">
@@ -269,7 +269,7 @@
                                     <span className="bg-slate-900 text-white px-2.5 py-0.5 rounded-lg">P</span>
                                     Platita
                                 </h1>
-                                <button onClick={() => auth.signOut()} className="text-slate-300 hover:text-rose-500 transition-colors md:ml-4">
+                                <button onClick={() => auth.signOut()} className="text-slate-500 hover:text-rose-500 transition-colors md:ml-4">
                                     <Icons.Logout />
                                 </button>
                             </div>
@@ -283,21 +283,20 @@
                             </div>
                         </div>
 
-                        {/* Balance Card */}
+                        {/* Balance Card - Privacidad solo aquí */}
                         <div className="bg-slate-900 rounded-[2rem] p-5 md:p-6 text-white card-shadow relative overflow-hidden flex flex-col items-center">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
                             
-                            {/* Toggle Visibilidad */}
                             <button 
-                                onClick={() => setShowValues(!showValues)}
-                                className="absolute top-4 right-6 text-slate-400 hover:text-white transition-colors p-2"
+                                onClick={() => setHideBalance(!hideBalance)}
+                                className="absolute top-4 right-6 text-slate-400 hover:text-white transition-colors p-2 z-10"
                             >
-                                {showValues ? <Icons.EyeOff /> : <Icons.Eye />}
+                                {hideBalance ? <Icons.Eye /> : <Icons.EyeOff />}
                             </button>
 
                             <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Disponible</p>
                             <h2 className="text-3xl md:text-4xl font-black mb-4 tracking-tight">
-                                {formatCurrency(stats.balance, showValues)}
+                                {formatCurrency(stats.balance, hideBalance)}
                             </h2>
                             
                             <div className="w-full bg-white/10 h-1.5 rounded-full mb-4 overflow-hidden max-w-xs">
@@ -307,11 +306,11 @@
                             <div className="grid grid-cols-2 gap-8 border-t border-white/10 pt-4 w-full max-w-sm">
                                 <div className="text-center">
                                     <p className="text-slate-500 text-[9px] uppercase font-black mb-1 tracking-tighter">Ingresos</p>
-                                    <p className="text-emerald-400 font-black text-sm">{formatCurrency(stats.income, showValues)}</p>
+                                    <p className="text-emerald-400 font-black text-sm">{formatCurrency(stats.income, hideBalance)}</p>
                                 </div>
                                 <div className="text-center">
                                     <p className="text-slate-500 text-[9px] uppercase font-black mb-1 tracking-tighter">Gastado</p>
-                                    <p className="text-rose-400 font-black text-sm">{formatCurrency(stats.totalSpent, showValues)}</p>
+                                    <p className="text-rose-400 font-black text-sm">{formatCurrency(stats.totalSpent, hideBalance)}</p>
                                 </div>
                             </div>
                         </div>
@@ -322,7 +321,7 @@
                             <div className="bg-slate-900 p-8 rounded-[2rem] text-white flex flex-col items-center text-center animate-fade-in shadow-xl md:max-w-2xl mx-auto">
                                 <div className="bg-white/10 p-3 rounded-full mb-3"><Icons.Copy /></div>
                                 <h3 className="text-lg font-black mb-1">Iniciá el mes</h3>
-                                <p className="text-slate-400 text-xs mb-6">Copia tus sueldos y gastos fijos (en $0) del mes anterior.</p>
+                                <p className="text-slate-400 text-xs mb-6">Copia tus sueldos y gastos fijos del mes anterior.</p>
                                 <button onClick={importPreviousMonth} className="bg-white text-slate-900 px-8 py-3 rounded-xl font-black text-xs active:scale-95 transition-all">
                                     Importar plantilla
                                 </button>
@@ -330,15 +329,14 @@
                         )}
 
                         <div className="max-w-3xl mx-auto space-y-6">
-                            {view === 'dashboard' && <Summary stats={stats} showValues={showValues} />}
-                            {view === 'analysis' && <AnalysisView stats={stats} currentMonthItems={currentMonthItems} showValues={showValues} />}
-                            {view === 'income' && <ListView title="Ingresos" type="income" items={currentMonthItems.filter(i => i.type === 'income')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Nombre (ej: Sueldo)" accent="emerald" showValues={showValues} />}
-                            {view === 'recurring' && <ListView title="Gastos Fijos" type="recurring" items={currentMonthItems.filter(i => i.type === 'recurring')} onAdd={add} onDelete={del} onUpdate={updateField} onToggle={toggle} placeholder="Ej: Expensas" accent="amber" showCheck showDueDay showValues={showValues} />}
-                            {view === 'daily' && <ListView title="Gastos Diarios" type="daily" items={currentMonthItems.filter(i => i.type === 'daily')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Ej: Supermercado" accent="rose" showCategories showValues={showValues} />}
+                            {view === 'dashboard' && <Summary stats={stats} />}
+                            {view === 'analysis' && <AnalysisView stats={stats} currentMonthItems={currentMonthItems} />}
+                            {view === 'income' && <ListView title="Cobros e Ingresos" type="income" items={currentMonthItems.filter(i => i.type === 'income')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Descripción (ej: Sueldo A)" accent="emerald" />}
+                            {view === 'recurring' && <ListView title="Gastos Fijos" type="recurring" items={currentMonthItems.filter(i => i.type === 'recurring')} onAdd={add} onDelete={del} onUpdate={updateField} onToggle={toggle} placeholder="Descripción (ej: Expensas)" accent="amber" showCheck showDueDay />}
+                            {view === 'daily' && <ListView title="Gastos Diarios" type="daily" items={currentMonthItems.filter(i => i.type === 'daily')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Detalle (ej: Farmacia)" accent="rose" showCategories />}
                         </div>
                     </main>
 
-                    {/* Navegación Inferior */}
                     <nav className="fixed bottom-0 left-0 right-0 glass-nav z-30 md:bottom-8 md:left-1/2 md:-translate-x-1/2 md:w-fit md:rounded-full md:shadow-2xl md:border md:border-slate-200">
                         <div className="max-w-md md:max-w-none mx-auto flex justify-around md:justify-center md:gap-2 px-2 md:px-4 py-3 safe-area-bottom">
                             <NavTab active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<Icons.Wallet />} label="Inicio" />
@@ -353,37 +351,37 @@
         };
 
         const NavTab = ({ active, onClick, icon, label }) => (
-            <button onClick={onClick} className={`p-3 rounded-2xl md:rounded-full transition-all duration-300 flex flex-col md:flex-row items-center gap-1 md:gap-2 group ${active ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-100'}`}>
+            <button onClick={onClick} className={`p-3 rounded-2xl md:rounded-full transition-all duration-300 flex flex-col md:flex-row items-center gap-1 md:gap-2 group ${active ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}>
                 {icon}
                 <span className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest ${active ? 'block' : 'hidden md:group-hover:block'}`}>{label}</span>
             </button>
         );
 
-        const Summary = ({ stats, showValues }) => (
+        const Summary = ({ stats }) => (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
-                <SummaryCard title="A pagar pronto" amount={stats.recPending} icon={<Icons.Calendar />} color="amber" showValues={showValues} />
-                <SummaryCard title="Gastos Diarios" amount={stats.daily} icon={<Icons.Shopping />} color="rose" showValues={showValues} />
+                <SummaryCard title="A pagar pronto" amount={stats.recPending} icon={<Icons.Calendar />} color="amber" />
+                <SummaryCard title="Gastos Diarios" amount={stats.daily} icon={<Icons.Shopping />} color="rose" />
             </div>
         );
 
-        const SummaryCard = ({ title, amount, icon, color, showValues }) => {
+        const SummaryCard = ({ title, amount, icon, color }) => {
             const colors = {
-                amber: "bg-amber-50 text-amber-500",
-                rose: "bg-rose-50 text-rose-500",
-                emerald: "bg-emerald-50 text-emerald-500"
+                amber: "bg-amber-50 text-amber-600",
+                rose: "bg-rose-50 text-rose-600",
+                emerald: "bg-emerald-50 text-emerald-600"
             };
             return (
                 <div className="bg-white p-5 rounded-3xl border border-slate-100 flex items-center gap-4 card-shadow">
                     <div className={`w-10 h-10 ${colors[color]} rounded-2xl flex items-center justify-center shrink-0`}>{icon}</div>
                     <div>
                         <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">{title}</p>
-                        <p className="text-xl font-black text-slate-800 tracking-tight">{formatCurrency(amount, showValues)}</p>
+                        <p className="text-xl font-black text-slate-800 tracking-tight">{formatCurrency(amount)}</p>
                     </div>
                 </div>
             );
         };
 
-        const AnalysisView = ({ stats, currentMonthItems, showValues }) => {
+        const AnalysisView = ({ stats, currentMonthItems }) => {
             const dailyByCategory = useMemo(() => {
                 const cats = {};
                 currentMonthItems.filter(i => i.type === 'daily').forEach(i => {
@@ -405,10 +403,10 @@
                         {dailyByCategory.map(([cat, amount]) => (
                             <div key={cat} className="bg-white p-4 rounded-2xl border border-slate-100 card-shadow flex items-center justify-between">
                                 <div className="flex-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase">{cat}</p>
-                                    <p className="text-lg font-bold text-slate-800">{formatCurrency(amount, showValues)}</p>
+                                    <p className="text-[10px] font-black text-slate-500 uppercase">{cat}</p>
+                                    <p className="text-lg font-bold text-slate-800">{formatCurrency(amount)}</p>
                                 </div>
-                                <div className="bg-slate-50 px-3 py-1 rounded-full text-[10px] font-black text-slate-400 uppercase">
+                                <div className="bg-slate-100 px-3 py-1 rounded-full text-[10px] font-black text-slate-500 uppercase">
                                     {((amount / (stats.daily || 1)) * 100).toFixed(0)}%
                                 </div>
                             </div>
@@ -421,14 +419,14 @@
         const ProgressBar = ({ label, amount, total, color }) => {
             const percentage = ((amount / (total || 1)) * 100).toFixed(0);
             const colors = {
-                amber: "bg-amber-400",
-                rose: "bg-rose-400"
+                amber: "bg-amber-500",
+                rose: "bg-rose-500"
             };
             return (
                 <div className="space-y-2">
                     <div className="flex justify-between items-center text-xs font-black text-slate-700">
                         <span>{label}</span>
-                        <span className="text-slate-400">{percentage}%</span>
+                        <span className="text-slate-500">{percentage}%</span>
                     </div>
                     <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
                         <div className={`h-full ${colors[color]} transition-all duration-1000`} style={{ width: `${percentage}%` }}></div>
@@ -437,7 +435,7 @@
             );
         };
 
-        const ListView = ({ title, type, items, onAdd, onDelete, onUpdate, onToggle, placeholder, accent, showCheck, showCategories, showDueDay, showValues }) => {
+        const ListView = ({ title, type, items, onAdd, onDelete, onUpdate, onToggle, placeholder, accent, showCheck, showCategories, showDueDay }) => {
             const [newName, setNewName] = useState('');
             const [newAmountStr, setNewAmountStr] = useState('');
             const [newDueDay, setNewDueDay] = useState('');
@@ -451,7 +449,7 @@
             const handleAdd = (e) => {
                 e.preventDefault();
                 const amount = parseLocaleNumber(newAmountStr);
-                if (!newName || amount === 0) return;
+                if (!newName) return; // Se permite importe cero
                 onAdd({ 
                     name: newName, 
                     amount, 
@@ -467,33 +465,33 @@
                 <div className="space-y-4 animate-fade-in">
                     <div className="flex justify-between items-center ml-1">
                         <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{title}</h2>
-                        <span className="text-[9px] font-black text-slate-300 bg-white px-2 py-0.5 rounded-full border border-slate-100 uppercase">{items.length} registros</span>
+                        <span className="text-[9px] font-black text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-100 uppercase">{items.length} regs.</span>
                     </div>
 
                     <form onSubmit={handleAdd} className="bg-white p-5 md:p-6 rounded-[2rem] border border-slate-200 card-shadow flex flex-col gap-4">
-                        <div className="space-y-2">
-                            <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Descripción</label>
-                            <input className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-slate-900/5 transition-all" placeholder={placeholder} value={newName} onChange={e => setNewName(e.target.value)} />
+                        <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Descripción</label>
+                            <input className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-200 transition-all" placeholder={placeholder} value={newName} onChange={e => setNewName(e.target.value)} />
                         </div>
                         
                         <div className="grid grid-cols-12 gap-3 items-end">
-                            <div className={`${showDueDay ? 'col-span-8' : 'col-span-10'} space-y-2`}>
-                                <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Importe ($)</label>
+                            <div className={`${showDueDay ? 'col-span-8' : 'col-span-10'} space-y-1`}>
+                                <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Importe ($)</label>
                                 <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 font-bold">$</span>
-                                    <input type="text" className="w-full p-3 pl-7 bg-slate-50 border-none rounded-xl text-sm font-black outline-none" placeholder="0" value={newAmountStr} onChange={handleAmountChange} />
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                                    <input type="text" className="w-full p-3 pl-7 bg-slate-50 border border-slate-100 rounded-xl text-sm font-black outline-none" placeholder="0" value={newAmountStr} onChange={handleAmountChange} />
                                 </div>
                             </div>
 
                             {showDueDay && (
-                                <div className="col-span-2 space-y-2 text-center">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase">Día</label>
-                                    <input type="number" min="1" max="31" className="w-full p-3 bg-slate-50 border-none rounded-xl text-sm font-black text-center outline-none" placeholder="15" value={newDueDay} onChange={e => setNewDueDay(e.target.value)} />
+                                <div className="col-span-2 space-y-1 text-center">
+                                    <label className="text-[9px] font-black text-slate-500 uppercase">Día</label>
+                                    <input type="number" min="1" max="31" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-black text-center outline-none" placeholder="15" value={newDueDay} onChange={e => setNewDueDay(e.target.value)} />
                                 </div>
                             )}
 
                             <div className="col-span-2">
-                                <button type="submit" className="bg-slate-900 text-white w-full h-[46px] rounded-xl font-black shadow-xl hover:bg-black transition-all active:scale-95 flex items-center justify-center">
+                                <button type="submit" className="bg-slate-900 text-white w-full h-[46px] rounded-xl font-black shadow-lg shadow-slate-200 hover:bg-black transition-all active:scale-95 flex items-center justify-center">
                                     <Icons.Plus />
                                 </button>
                             </div>
@@ -502,7 +500,7 @@
                         {showCategories && (
                             <div className="flex gap-2 overflow-x-auto py-1 no-scrollbar">
                                 {["General", "Comida", "Transporte", "Hogar", "Ocio", "Salud"].map(cat => (
-                                    <button key={cat} type="button" onClick={() => setNewCategory(cat)} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${newCategory === cat ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`}>{cat}</button>
+                                    <button key={cat} type="button" onClick={() => setNewCategory(cat)} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${newCategory === cat ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-500 border border-slate-100'}`}>{cat}</button>
                                 ))}
                             </div>
                         )}
@@ -519,7 +517,6 @@
                                 onToggle={() => onToggle && onToggle(item)}
                                 showCheck={showCheck}
                                 showDueDay={showDueDay}
-                                showValues={showValues}
                             />
                         ))}
                     </div>
@@ -527,49 +524,49 @@
             );
         };
 
-        const ItemCard = ({ item, accent, onDel, onEdit, onToggle, showCheck, showDueDay, showValues }) => {
+        const ItemCard = ({ item, accent, onDel, onEdit, onToggle, showCheck, showDueDay }) => {
             const borderColors = {
-                emerald: "border-emerald-400",
-                rose: "border-rose-400",
-                amber: "border-amber-400",
-                slate: "border-slate-400"
+                emerald: "border-emerald-500",
+                rose: "border-rose-500",
+                amber: "border-amber-500",
+                slate: "border-slate-500"
             };
 
             return (
-                <div className={`bg-white p-5 rounded-[1.5rem] border-l-[8px] ${borderColors[accent]} card-shadow flex items-center justify-between gap-4 transition-all ${item.paid && showCheck ? 'opacity-30 grayscale scale-[0.98]' : 'hover:-translate-y-0.5'}`}>
+                <div className={`bg-white p-5 rounded-[1.5rem] border-l-[10px] ${borderColors[accent]} card-shadow flex items-center justify-between gap-4 transition-all ${item.paid && showCheck ? 'opacity-30 grayscale scale-[0.98]' : 'hover:-translate-y-0.5'}`}>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                             <input 
-                                className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-transparent outline-none focus:text-slate-900 w-full" 
+                                className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-transparent outline-none focus:text-slate-900 w-full" 
                                 value={item.name} 
                                 onChange={e => onEdit('name', e.target.value)} 
                             />
                             {showDueDay && (
-                                <div className="flex items-center bg-slate-50 rounded-md px-1.5 py-0.5 shrink-0 border border-slate-100">
-                                    <span className="text-[8px] font-black text-slate-400 mr-1.5 uppercase tracking-tighter">Vto:</span>
+                                <div className="flex items-center bg-slate-100 rounded-md px-1.5 py-0.5 shrink-0 border border-slate-200">
+                                    <span className="text-[8px] font-black text-slate-500 mr-1.5 uppercase tracking-tighter">Vto:</span>
                                     <input 
                                         type="number" 
                                         min="1" max="31"
-                                        className="bg-transparent text-[10px] font-black text-slate-600 outline-none w-5 text-center"
+                                        className="bg-transparent text-[10px] font-black text-slate-700 outline-none w-5 text-center"
                                         value={item.dueDay || ''}
                                         onChange={e => onEdit('dueDay', e.target.value)}
                                     />
                                 </div>
                             )}
-                            {item.category && !showDueDay && <span className="text-[8px] bg-slate-50 px-2 py-0.5 rounded-full text-slate-400 font-bold uppercase tracking-widest border border-slate-100">{item.category}</span>}
+                            {item.category && !showDueDay && <span className="text-[8px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-500 font-bold uppercase tracking-widest border border-slate-200">{item.category}</span>}
                         </div>
                         <div className="flex items-center text-2xl font-black text-slate-900 tracking-tighter">
-                            <span className="text-slate-200 mr-1.5">$</span>
-                            <CurrencyInput value={item.amount} onChange={(val) => onEdit('amount', val)} showValues={showValues} />
+                            <span className="text-slate-400 mr-1.5">$</span>
+                            <CurrencyInput value={item.amount} onChange={(val) => onEdit('amount', val)} />
                         </div>
                     </div>
-                    <div className="flex gap-1 shrink-0">
+                    <div className="flex gap-2 shrink-0">
                         {showCheck && (
-                            <button onClick={onToggle} className={`p-3 rounded-xl transition-all ${item.paid ? 'text-emerald-600 bg-emerald-50' : 'text-slate-200 hover:text-emerald-500'}`}>
+                            <button onClick={onToggle} className={`p-3 rounded-2xl transition-all border-2 ${item.paid ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 border-slate-100'}`}>
                                 <Icons.Check />
                             </button>
                         )}
-                        <button onClick={onDel} className="p-3 text-slate-100 hover:text-rose-500 rounded-xl transition-all">
+                        <button onClick={onDel} className="p-3 text-slate-600 hover:text-rose-600 hover:bg-rose-50 border-2 border-slate-100 rounded-2xl transition-all">
                             <Icons.Trash />
                         </button>
                     </div>
@@ -577,7 +574,7 @@
             );
         };
 
-        const CurrencyInput = ({ value, onChange, showValues }) => {
+        const CurrencyInput = ({ value, onChange }) => {
             const [display, setDisplay] = useState('');
 
             useEffect(() => {
@@ -595,8 +592,6 @@
                 setDisplay(new Intl.NumberFormat('es-AR').format(num));
                 onChange(num);
             };
-
-            if (!showValues) return <span className="text-slate-900">••••••</span>;
 
             return (
                 <input 
