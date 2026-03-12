@@ -127,7 +127,7 @@
                 const recPending = currentMonthItems.filter(i => i.type === 'recurring' && !i.paid).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
                 const daily = currentMonthItems.filter(i => i.type === 'daily').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
                 
-                // Filtramos gastos sin importe asignado para "Próximos Vencimientos"
+                // Filtramos gastos sin importe asignado o con importe 0 para "Próximos Vencimientos"
                 const upcoming = currentMonthItems
                     .filter(i => i.type === 'recurring' && !i.paid && (parseFloat(i.amount) > 0))
                     .map(i => ({
@@ -481,12 +481,13 @@
             const isCC = item.name.toLowerCase().includes('visa') || item.name.toLowerCase().includes('master');
             const colorClass = { emerald: 'border-emerald-500', amber: 'border-amber-500', rose: 'border-rose-500' }[accent];
 
-            // Lógica de vencimiento
+            // Lógica de vencimiento mejorada: no vence si el valor es cero
             const today = new Date();
             const currentDay = today.getDate();
+            const amount = parseFloat(item.amount) || 0;
             const isCurrentMonth = navDate && navDate.getMonth() === today.getMonth() && navDate.getFullYear() === today.getFullYear();
             const isPastMonth = navDate && navDate < new Date(today.getFullYear(), today.getMonth(), 1);
-            const isOverdue = item.type === 'recurring' && !item.paid && ((isCurrentMonth && currentDay > item.dueDay) || isPastMonth);
+            const isOverdue = item.type === 'recurring' && !item.paid && amount > 0 && ((isCurrentMonth && currentDay > item.dueDay) || isPastMonth);
 
             const saveEdit = () => {
                 const updates = { name: editName, amount: parseLocaleNumber(editAmount) };
