@@ -61,10 +61,6 @@
         input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
-
-        .btn-primary {
-            @apply bg-slate-900 text-white py-4 rounded-2xl font-black shadow-lg active:scale-95 transition-transform;
-        }
     </style>
 </head>
 <body>
@@ -127,17 +123,16 @@
             const [navDate, setNavDate] = useState(new Date());
             const [hideBalance, setHideBalance] = useState(false);
             const [authError, setAuthError] = useState(null);
+            const [authSuccess, setAuthSuccess] = useState(null);
             const [loginData, setLoginData] = useState({ email: '', password: '' });
             const [isRegistering, setIsRegistering] = useState(false);
+            const [isResetting, setIsResetting] = useState(false);
 
             useEffect(() => {
                 const initAuth = async () => {
                     try {
                         if (window.location.protocol.startsWith('http')) {
                             await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-                        }
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await auth.signInWithCustomToken(__initial_auth_token);
                         }
                     } catch (e) { console.error("Auth init error:", e); }
                     setLoading(false);
@@ -181,20 +176,26 @@
                 e.preventDefault();
                 setLoading(true);
                 setAuthError(null);
+                setAuthSuccess(null);
                 try {
-                    if (isRegistering) {
+                    if (isResetting) {
+                        await auth.sendPasswordResetEmail(loginData.email);
+                        setAuthSuccess("Email de recuperación enviado. Revisa tu bandeja de entrada.");
+                        setIsResetting(false);
+                    } else if (isRegistering) {
                         await auth.createUserWithEmailAndPassword(loginData.email, loginData.password);
                     } else {
                         await auth.signInWithEmailAndPassword(loginData.email, loginData.password);
                     }
                 } catch (e) {
-                    let msg = "Error al ingresar";
+                    let msg = "Error en la operación";
                     if (e.code === 'auth/user-not-found') msg = "Usuario no encontrado";
                     else if (e.code === 'auth/wrong-password') msg = "Contraseña incorrecta";
-                    else if (e.code === 'auth/email-already-in-use') msg = "El email ya está registrado";
+                    else if (e.code === 'auth/email-already-in-use') msg = "Este mail ya está registrado. Intenta entrar.";
                     else if (e.code === 'auth/invalid-email') msg = "Email inválido";
-                    else if (e.code === 'auth/weak-password') msg = "Contraseña muy corta";
+                    else if (e.code === 'auth/weak-password') msg = "Contraseña muy corta (mínimo 6 caracteres)";
                     setAuthError(msg);
+                } finally {
                     setLoading(false);
                 }
             };
@@ -223,39 +224,66 @@
 
             if (!user) return (
                 <div className="flex flex-col h-screen items-center justify-center bg-white p-8 animate-fade-in relative overflow-hidden">
-                    {/* Background decoration */}
                     <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-slate-50 rounded-full blur-3xl opacity-50"></div>
                     <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-slate-50 rounded-full blur-3xl opacity-50"></div>
                     
                     <div className="relative z-10 w-full max-w-sm text-center">
                         <div className="bg-slate-900 text-white p-5 rounded-[2.5rem] mb-6 shadow-2xl inline-block mx-auto"><Icons.Wallet /></div>
                         <h1 className="text-4xl font-black text-slate-900 mb-2 tracking-tight">Platita</h1>
-                        <p className="text-slate-500 mb-10">{isRegistering ? 'Crea tu cuenta única' : 'Bienvenido de vuelta'}</p>
+                        <p className="text-slate-500 mb-10 font-medium">
+                            {isResetting ? 'Recuperar acceso' : isRegistering ? 'Crea tu cuenta única' : 'Bienvenido de vuelta'}
+                        </p>
                         
                         <form onSubmit={handleAuthSubmit} className="space-y-4 text-left">
                             <div>
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label>
-                                <input type="email" required className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-slate-200 transition-all font-medium" placeholder="tu@email.com" value={loginData.email} onChange={e => setLoginData({...loginData, email: e.target.value})} />
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contraseña</label>
-                                <input type="password" required className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-slate-200 transition-all font-medium" placeholder="••••••••" value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} />
+                                <input type="email" required className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-slate-200 transition-all font-medium text-slate-800" placeholder="tu@email.com" value={loginData.email} onChange={e => setLoginData({...loginData, email: e.target.value})} />
                             </div>
                             
+                            {!isResetting && (
+                                <div>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Contraseña</label>
+                                        {!isRegistering && (
+                                            <button type="button" onClick={() => { setIsResetting(true); setAuthError(null); }} className="text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest">¿Olvidaste?</button>
+                                        )}
+                                    </div>
+                                    <input type="password" required className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-slate-200 transition-all font-medium text-slate-800" placeholder="••••••••" value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} />
+                                </div>
+                            )}
+                            
                             {authError && (
-                                <div className="bg-rose-50 border border-rose-100 text-rose-600 text-xs font-bold p-4 rounded-2xl text-center">
+                                <div className="bg-rose-50 border border-rose-100 text-rose-600 text-xs font-bold p-4 rounded-2xl text-center leading-relaxed">
                                     {authError}
                                 </div>
                             )}
 
+                            {authSuccess && (
+                                <div className="bg-emerald-50 border border-emerald-100 text-emerald-600 text-xs font-bold p-4 rounded-2xl text-center leading-relaxed">
+                                    {authSuccess}
+                                </div>
+                            )}
+
                             <button type="submit" className="w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-lg shadow-xl active:scale-95 transition-transform mt-4">
-                                {isRegistering ? 'Crear Cuenta' : 'Entrar'}
+                                {isResetting ? 'Enviar Link' : isRegistering ? 'Registrarse' : 'Entrar'}
                             </button>
                         </form>
 
-                        <button onClick={() => { setIsRegistering(!isRegistering); setAuthError(null); }} className="text-slate-400 text-xs font-bold mt-8 hover:text-slate-600 transition-colors uppercase tracking-widest">
-                            {isRegistering ? '¿Ya tienes cuenta? Ingresa' : '¿No tienes cuenta? Regístrate'}
-                        </button>
+                        <div className="mt-8 space-y-4">
+                            {!isResetting ? (
+                                <button onClick={() => { setIsRegistering(!isRegistering); setAuthError(null); }} className="text-slate-400 text-xs font-bold hover:text-slate-600 transition-colors uppercase tracking-widest block w-full text-center">
+                                    {isRegistering ? (
+                                        <span>¿Ya tienes cuenta? <span className="text-slate-900 underline">Ingresa</span></span>
+                                    ) : (
+                                        <span>¿No tienes cuenta? <span className="text-slate-900 underline">Regístrate</span></span>
+                                    )}
+                                </button>
+                            ) : (
+                                <button onClick={() => { setIsResetting(false); setAuthError(null); }} className="text-slate-400 text-xs font-bold hover:text-slate-600 transition-colors uppercase tracking-widest block w-full text-center">
+                                    Volver al ingreso
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             );
@@ -370,13 +398,13 @@
                     )}
                     <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-1">{title}</h2>
                     <form onSubmit={handleAdd} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col gap-4">
-                        <input className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none font-medium" placeholder="Descripción" value={newName} onChange={e => setNewName(e.target.value)} />
+                        <input className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none font-medium text-slate-800" placeholder="Descripción" value={newName} onChange={e => setNewName(e.target.value)} />
                         <div className="grid grid-cols-12 gap-3">
                             <div className={`${showDueDay ? 'col-span-8' : 'col-span-10'} relative`}>
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                                <input type="text" className="w-full p-4 pl-8 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black outline-none" placeholder="0,00" value={newAmount} onChange={e => setNewAmount(e.target.value)} />
+                                <input type="text" className="w-full p-4 pl-8 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black outline-none text-slate-800" placeholder="0,00" value={newAmount} onChange={e => setNewAmount(e.target.value)} />
                             </div>
-                            {showDueDay && <input type="number" className="col-span-2 w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-center outline-none" placeholder="Vto" value={newDueDay} onChange={e => setNewDueDay(e.target.value)} />}
+                            {showDueDay && <input type="number" className="col-span-2 w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-center outline-none text-slate-800" placeholder="Vto" value={newDueDay} onChange={e => setNewDueDay(e.target.value)} />}
                             <button type="submit" className="col-span-2 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-transform"><Icons.Plus /></button>
                         </div>
                         {showCategories && (
@@ -420,7 +448,7 @@
                                     {!item.paid ? (
                                         <>
                                             <button onClick={() => onToggle(item)} className="p-3 rounded-2xl border border-slate-100 text-slate-400 hover:text-emerald-500"><Icons.Check /></button>
-                                            {isCC && <button onClick={() => setShowPartial(!showPartial)} className="p-3 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs">P</button>}
+                                            {isCC && <button onClick={() => setShowPartial(!showPartial)} className="p-3 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs hover:bg-amber-50">P</button>}
                                         </>
                                     ) : <button onClick={() => onToggle(item)} className="p-3 rounded-2xl bg-emerald-500 text-white shadow-md"><Icons.Check /></button>}
                                 </div>
@@ -430,7 +458,7 @@
                     </div>
                     {showPartial && !item.paid && (
                         <div className="flex gap-2 items-end p-4 bg-amber-50 rounded-[1.5rem] animate-fade-in border border-amber-100">
-                            <input className="flex-1 p-3 bg-white border border-amber-200 rounded-xl text-xs font-black outline-none" placeholder="Monto parcial..." value={partialVal} onChange={e => setPartialVal(e.target.value)} />
+                            <input type="text" className="flex-1 p-3 bg-white border border-amber-200 rounded-xl text-xs font-black outline-none text-slate-800" placeholder="Monto parcial..." value={partialVal} onChange={e => setPartialVal(e.target.value)} />
                             <button onClick={() => {onToggle(item, 'partial', parseLocaleNumber(partialVal)); setShowPartial(false);}} className="bg-amber-500 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase shadow-lg">Confirmar</button>
                         </div>
                     )}
