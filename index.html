@@ -9,7 +9,9 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
-  getRedirectResult
+  getRedirectResult,
+  setPersistence,
+  browserLocalPersistence
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -22,7 +24,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 
-// --- CONFIGURACIÓN ---
+// --- CONFIGURACIÓN DE FIREBASE ---
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
   apiKey: "AIzaSyB_iAkA30kQKiavpJnB0zTpRXUr7aCzA7k",
   authDomain: "platita-3fcc5.firebaseapp.com",
@@ -40,7 +42,7 @@ const appId = typeof __app_id !== 'undefined' ? __app_id : 'mi-app-finanzas-v1';
 const CATEGORIES_RECURRING = ["Hogar", "Servicios", "Impuestos", "Salud", "Educación", "Tarjetas", "General"];
 const CATEGORIES_DAILY = ["Comida", "Transporte", "Ocio", "Super", "Shopping", "General"];
 
-// --- ICONOS ---
+// --- COMPONENTES DE ICONOS (SVG Inline) ---
 const Icons = {
   Wallet: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>,
   Calendar: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
@@ -73,6 +75,7 @@ const parseLocaleNumber = (stringNumber) => {
   return parseFloat(clean) || 0;
 };
 
+// --- COMPONENTE PRINCIPAL ---
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -82,49 +85,60 @@ export default function App() {
   const [navDate, setNavDate] = useState(new Date());
   const [hideBalance, setHideBalance] = useState(false);
 
-  // 1. Inicialización de Autenticación
+  // 1. Inicialización de Autenticación (REGLA 3)
   useEffect(() => {
     const initAuth = async () => {
       try {
+        // Primero intentamos establecer persistencia si el entorno lo permite
+        if (window.location.protocol.startsWith('http')) {
+          try {
+            await setPersistence(auth, browserLocalPersistence);
+          } catch (pe) { console.warn("Persistencia no soportada"); }
+        }
+
+        // REGLA 3: Llamar a auth primero y esperar
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
           await signInWithCustomToken(auth, __initial_auth_token);
-        } else if (window.location.protocol.startsWith('http')) {
-          try {
-            const result = await getRedirectResult(auth);
-            if (result?.user) setUser(result.user);
-          } catch (err) { console.warn(err); }
-        }
-        
-        // Fallback anónimo para el preview si nada funciona
-        if (!auth.currentUser) {
-            await signInAnonymously(auth);
+        } else {
+          // Siempre intentamos anónimo primero para asegurar que Firestore funcione
+          // Si hay una sesión de Google previa, onAuthStateChanged la recuperará.
+          await signInAnonymously(auth);
         }
       } catch (e) {
-        console.error("Auth Error:", e);
+        console.error("Auth Init Error:", e);
       } finally {
         setLoading(false);
       }
     };
 
     initAuth();
-    const unsubscribe = onAuthStateChanged(auth, setUser);
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
     return () => unsubscribe();
   }, []);
 
-  // 2. Suscripción a Datos
+  // 2. Suscripción a Datos (REGLA 1 y 2)
   useEffect(() => {
     if (!user) return;
+    
+    // REGLA 1: Path estricto
     const colRef = collection(db, 'artifacts', appId, 'users', user.uid, 'transactions');
+    
+    // REGLA 2: Sin filtros complejos en la query
     const unsubscribe = onSnapshot(colRef, 
       (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setItems(data);
       },
-      (err) => console.error("Firestore Error:", err)
+      (err) => {
+        console.error("Firestore Error:", err);
+      }
     );
     return () => unsubscribe();
   }, [user]);
 
+  // Cálculos de estado derivados
   const selectedMonth = navDate.getMonth();
   const selectedYear = navDate.getFullYear();
 
@@ -156,12 +170,26 @@ export default function App() {
 
   const handleLogin = async (mode) => {
     const provider = new GoogleAuthProvider();
+    setAuthError(null);
     setLoading(true);
+
+    if (!window.location.protocol.startsWith('http')) {
+      setAuthError("El inicio de sesión con Google requiere un entorno HTTPS. Usa el modo Invitado en esta previsualización.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      if (mode === 'redirect') await signInWithRedirect(auth, provider);
-      else await signInWithPopup(auth, provider);
+      if (mode === 'redirect') {
+        await signInWithRedirect(auth, provider);
+      } else {
+        await signInWithPopup(auth, provider);
+      }
     } catch (e) {
-      setAuthError(e.message);
+      console.error("Login error:", e);
+      setAuthError(e.message.includes("operation-not-supported") 
+        ? "Tu navegador bloquea el acceso necesario para Google. Prueba 'Usar Redirección' o usa el modo Invitado." 
+        : e.message);
       setLoading(false);
     }
   };
@@ -202,18 +230,14 @@ export default function App() {
 
   if (loading) return <div className="flex h-screen items-center justify-center bg-white"><div className="w-10 h-10 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div></div>;
 
-  if (!user || user.isAnonymous) {
-      // Si es anónimo en el preview, permitimos entrar, pero si el usuario quiere loguearse:
-      if (!user) return (
-        <div className="flex flex-col h-screen items-center justify-center bg-white p-8 animate-fade-in text-center">
-            <div className="bg-slate-900 text-white p-5 rounded-[2rem] mb-6 shadow-2xl"><Icons.Wallet /></div>
-            <h1 className="text-3xl font-black text-slate-900 mb-2">Platita</h1>
-            <p className="text-slate-500 mb-8">Tus finanzas, sincronizadas.</p>
-            {authError && <p className="text-rose-500 text-xs mb-4">{authError}</p>}
-            <button onClick={() => handleLogin('popup')} className="bg-slate-900 text-white w-full max-w-sm py-5 rounded-[1.5rem] font-black text-lg shadow-xl">Ingresar con Google</button>
-        </div>
-      );
-  }
+  // Si no hay usuario en absoluto (no debería pasar por el fallback anónimo)
+  if (!user) return (
+    <div className="flex flex-col h-screen items-center justify-center bg-white p-8 text-center">
+      <div className="bg-slate-900 text-white p-5 rounded-[2rem] mb-6 shadow-2xl"><Icons.Wallet /></div>
+      <h1 className="text-3xl font-black text-slate-900 mb-2">Platita</h1>
+      <p className="text-slate-500 mb-8 italic">Cargando sesión segura...</p>
+    </div>
+  );
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-slate-50 pb-32 animate-fade-in relative font-sans">
@@ -222,40 +246,61 @@ export default function App() {
           <h1 className="text-xl font-black text-slate-900 flex items-center gap-2">
             <span className="bg-slate-900 text-white px-2 py-0.5 rounded-lg">P</span> Platita
           </h1>
-          <div className="flex items-center gap-2">
-            <button onClick={() => signOut(auth)} className="text-slate-400 hover:text-rose-600 transition-colors"><Icons.Logout /></button>
+          <div className="flex items-center gap-4">
+            {user.isAnonymous ? (
+              <button onClick={() => setView('login_screen')} className="text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">Vincular Google</button>
+            ) : (
+              <button onClick={() => signOut(auth)} className="text-slate-400 hover:text-rose-600 transition-colors"><Icons.Logout /></button>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center justify-between bg-slate-100 p-1 rounded-full mb-4">
-          <button onClick={() => setNavDate(new Date(navDate.setMonth(navDate.getMonth()-1)))} className="text-slate-500 p-1.5"><Icons.ChevronLeft /></button>
-          <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{navDate.toLocaleString('es-ES', { month: 'short', year: 'numeric' })}</span>
-          <button onClick={() => setNavDate(new Date(navDate.setMonth(navDate.getMonth()+1)))} className="text-slate-500 p-1.5"><Icons.ChevronRight /></button>
-        </div>
+        {view === 'login_screen' ? (
+          <div className="py-8 text-center animate-fade-in">
+             <h2 className="text-lg font-black text-slate-900 mb-2">Sincronizar Datos</h2>
+             <p className="text-xs text-slate-500 mb-6">Inicia sesión con Google para acceder a tus datos desde cualquier dispositivo.</p>
+             {authError && <p className="text-rose-500 text-[10px] font-bold mb-4 bg-rose-50 p-3 rounded-xl border border-rose-100">{authError}</p>}
+             <div className="flex flex-col gap-3">
+               <button onClick={() => handleLogin('popup')} className="bg-slate-900 text-white py-4 rounded-2xl font-black shadow-lg">Entrar con Google (Popup)</button>
+               <button onClick={() => handleLogin('redirect')} className="border-2 border-slate-100 text-slate-600 py-3 rounded-2xl font-black text-xs">Usar Redirección (Más estable)</button>
+               <button onClick={() => setView('dashboard')} className="text-slate-400 text-[10px] uppercase font-bold tracking-widest mt-2">Seguir como Invitado</button>
+             </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between bg-slate-100 p-1 rounded-full mb-4">
+              <button onClick={() => setNavDate(new Date(navDate.setMonth(navDate.getMonth()-1)))} className="text-slate-500 p-1.5"><Icons.ChevronLeft /></button>
+              <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{navDate.toLocaleString('es-ES', { month: 'short', year: 'numeric' })}</span>
+              <button onClick={() => setNavDate(new Date(navDate.setMonth(navDate.getMonth()+1)))} className="text-slate-500 p-1.5"><Icons.ChevronRight /></button>
+            </div>
 
-        <div className="bg-slate-900 rounded-[2rem] p-5 text-white shadow-xl relative overflow-hidden flex flex-col items-center">
-          <button onClick={() => setHideBalance(!hideBalance)} className="absolute top-4 right-6 text-slate-400 hover:text-white p-2">
-            {hideBalance ? <Icons.Eye /> : <Icons.EyeOff />}
-          </button>
-          <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Saldo Disponible</p>
-          <h2 className="text-3xl font-black mb-4 tracking-tight">{formatCurrency(stats.balance, hideBalance)}</h2>
-          <div className="w-full bg-white/10 h-1.5 rounded-full mb-4 overflow-hidden">
-            <div className={`h-full transition-all duration-1000 ${stats.spendRatio > 90 ? 'bg-rose-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(stats.spendRatio, 100)}%` }}></div>
-          </div>
-          <div className="grid grid-cols-2 gap-8 border-t border-white/10 pt-4 w-full text-center">
-            <div><p className="text-slate-500 text-[9px] uppercase font-black">Cobros</p><p className="text-emerald-400 font-black text-sm">{formatCurrency(stats.income, hideBalance)}</p></div>
-            <div><p className="text-slate-500 text-[9px] uppercase font-black">Salidas</p><p className="text-rose-400 font-black text-sm">{formatCurrency(stats.totalSpent, hideBalance)}</p></div>
-          </div>
-        </div>
+            <div className="bg-slate-900 rounded-[2rem] p-5 text-white shadow-xl relative overflow-hidden flex flex-col items-center">
+              <button onClick={() => setHideBalance(!hideBalance)} className="absolute top-4 right-6 text-slate-400 hover:text-white p-2">
+                {hideBalance ? <Icons.Eye /> : <Icons.EyeOff />}
+              </button>
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Saldo Disponible</p>
+              <h2 className="text-3xl font-black mb-4 tracking-tight">{formatCurrency(stats.balance, hideBalance)}</h2>
+              <div className="w-full bg-white/10 h-1.5 rounded-full mb-4 overflow-hidden">
+                <div className={`h-full transition-all duration-1000 ${stats.spendRatio > 90 ? 'bg-rose-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(stats.spendRatio, 100)}%` }}></div>
+              </div>
+              <div className="grid grid-cols-2 gap-8 border-t border-white/10 pt-4 w-full text-center">
+                <div><p className="text-slate-500 text-[9px] uppercase font-black">Cobros</p><p className="text-emerald-400 font-black text-sm">{formatCurrency(stats.income, hideBalance)}</p></div>
+                <div><p className="text-slate-500 text-[9px] uppercase font-black">Salidas</p><p className="text-rose-400 font-black text-sm">{formatCurrency(stats.totalSpent, hideBalance)}</p></div>
+              </div>
+            </div>
+          </>
+        )}
       </header>
 
-      <main className="p-4 space-y-6">
-        {view === 'dashboard' && <Summary stats={stats} />}
-        {view === 'analysis' && <AnalysisView items={items} currentMonthItems={currentMonthItems} stats={stats} navDate={navDate} />}
-        {view === 'income' && <ListView title="Cobros e Ingresos" type="income" items={currentMonthItems.filter(i => i.type === 'income')} onAdd={addItem} onDelete={deleteItem} onUpdate={updateItemField} accent="emerald" />}
-        {view === 'recurring' && <ListView title="Gastos Fijos" type="recurring" items={currentMonthItems.filter(i => i.type === 'recurring')} onAdd={addItem} onDelete={deleteItem} onUpdate={updateItemField} onToggle={toggleRecurring} accent="amber" showCheck showDueDay showCategories />}
-        {view === 'daily' && <ListView title="Gastos Diarios" type="daily" items={currentMonthItems.filter(i => i.type === 'daily')} onAdd={addItem} onDelete={deleteItem} onUpdate={updateItemField} accent="rose" showCategories showDatePicker showMonthlyTotal stats={stats} />}
-      </main>
+      {view !== 'login_screen' && (
+        <main className="p-4 space-y-6">
+          {view === 'dashboard' && <Summary stats={stats} />}
+          {view === 'analysis' && <AnalysisView currentMonthItems={currentMonthItems} stats={stats} />}
+          {view === 'income' && <ListView title="Cobros e Ingresos" type="income" items={currentMonthItems.filter(i => i.type === 'income')} onAdd={addItem} onDelete={deleteItem} onUpdate={updateItemField} accent="emerald" />}
+          {view === 'recurring' && <ListView title="Gastos Fijos" type="recurring" items={currentMonthItems.filter(i => i.type === 'recurring')} onAdd={addItem} onDelete={deleteItem} onUpdate={updateItemField} onToggle={toggleRecurring} accent="amber" showCheck showDueDay showCategories />}
+          {view === 'daily' && <ListView title="Gastos Diarios" type="daily" items={currentMonthItems.filter(i => i.type === 'daily')} onAdd={addItem} onDelete={deleteItem} onUpdate={updateItemField} accent="rose" showCategories showDatePicker showMonthlyTotal stats={stats} />}
+        </main>
+      )}
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-100 safe-area-bottom z-50">
         <div className="flex justify-around p-3">
@@ -269,6 +314,8 @@ export default function App() {
     </div>
   );
 }
+
+// --- SUBCOMPONENTES ---
 
 const NavTab = ({ active, onClick, icon, label }) => (
   <button onClick={onClick} className={`p-2 rounded-2xl transition-all flex flex-col items-center gap-1 ${active ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400'}`}>
@@ -421,8 +468,9 @@ const ItemCard = ({ item, accent, onDel, onEdit, onToggle, showCheck, showDueDay
   );
 };
 
-const AnalysisView = ({ items, currentMonthItems, stats, navDate }) => {
+const AnalysisView = ({ currentMonthItems, stats }) => {
   const chartRef = useRef(null);
+  const chartInstance = useRef(null);
   
   const byCategory = useMemo(() => {
     const cats = {};
@@ -435,11 +483,15 @@ const AnalysisView = ({ items, currentMonthItems, stats, navDate }) => {
   }, [currentMonthItems]);
 
   useEffect(() => {
-    // Si Chart.js no está cargado aún, esperamos o cargamos vía CDN dinámico si es necesario
-    if (typeof Chart === 'undefined') return;
+    // Verificamos si Chart.js está disponible en el scope global
+    if (typeof Chart === 'undefined' || !chartRef.current) return;
     
+    if (chartInstance.current) {
+        chartInstance.current.destroy();
+    }
+
     const ctx = chartRef.current.getContext('2d');
-    const chart = new Chart(ctx, {
+    chartInstance.current = new Chart(ctx, {
       type: 'doughnut',
       data: {
         labels: byCategory.map(c => c[0]),
@@ -452,10 +504,15 @@ const AnalysisView = ({ items, currentMonthItems, stats, navDate }) => {
       },
       options: {
         cutout: '75%',
-        plugins: { legend: { display: false } }
+        plugins: { legend: { display: false } },
+        responsive: true,
+        maintainAspectRatio: false
       }
     });
-    return () => chart.destroy();
+
+    return () => {
+        if (chartInstance.current) chartInstance.current.destroy();
+    };
   }, [byCategory]);
 
   return (
@@ -464,13 +521,15 @@ const AnalysisView = ({ items, currentMonthItems, stats, navDate }) => {
         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Gastos por Categoría</h3>
         <div className="relative w-48 h-48 mb-6">
           <canvas ref={chartRef}></canvas>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Total</p>
             <p className="text-xl font-black text-slate-900 tracking-tighter">{formatCurrency(stats.totalSpent)}</p>
           </div>
         </div>
         <div className="w-full space-y-3">
-          {byCategory.map(([cat, amount]) => (
+          {byCategory.length === 0 ? (
+             <p className="text-xs text-slate-400 italic text-center">Sin datos este mes</p>
+          ) : byCategory.map(([cat, amount]) => (
             <div key={cat} className="space-y-1.5">
               <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
                 <span className="text-slate-500">{cat}</span>
