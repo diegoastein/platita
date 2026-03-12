@@ -224,7 +224,6 @@
                     : `¿Importar registros del mes pasado? También se arrastrarán saldos pendientes de tarjetas.`;
 
                 if (confirm(confirmMsg)) {
-                    // Si es sobreescritura, borrar los actuales primero
                     if (overwrite) {
                         const toDelete = currentMonthItems.filter(i => i.type === 'income' || i.type === 'recurring');
                         for (const item of toDelete) {
@@ -233,7 +232,6 @@
                     }
 
                     for (const item of prevItems) {
-                        // Importar base
                         await add({
                             name: item.name,
                             amount: 0, 
@@ -244,7 +242,6 @@
                             date: navDate.toISOString()
                         });
 
-                        // Arrastre de deuda
                         if (item.type === 'recurring' && item.paid && item.paymentType === 'partial') {
                             const debt = (parseFloat(item.amount) || 0) - (parseFloat(item.paidAmount) || 0);
                             if (debt > 0) {
@@ -363,7 +360,7 @@
                             {view === 'analysis' && <AnalysisView stats={stats} allItems={items} currentMonthItems={currentMonthItems} navDate={navDate} />}
                             {view === 'income' && <ListView title="Cobros e Ingresos" type="income" items={currentMonthItems.filter(i => i.type === 'income')} onAdd={add} onDelete={del} onUpdate={updateField} onSync={() => importPreviousMonth(true)} placeholder="Descripción" accent="emerald" />}
                             {view === 'recurring' && <ListView title="Gastos Fijos" type="recurring" items={currentMonthItems.filter(i => i.type === 'recurring')} onAdd={add} onDelete={del} onUpdate={updateField} onToggle={toggle} onSync={() => importPreviousMonth(true)} placeholder="Descripción" accent="amber" showCheck showDueDay showCategories />}
-                            {view === 'daily' && <ListView title="Gastos Diarios" type="daily" items={currentMonthItems.filter(i => i.type === 'daily')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Detalle" accent="rose" showCategories showDatePicker />}
+                            {view === 'daily' && <ListView title="Gastos Diarios" type="daily" items={currentMonthItems.filter(i => i.type === 'daily')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Detalle" accent="rose" showCategories showDatePicker showMonthlyTotal stats={stats} />}
                         </div>
                     </main>
 
@@ -387,9 +384,14 @@
         );
 
         const Summary = ({ stats }) => (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
-                <SummaryCard title="Vencimientos Próximos" amount={stats.recPending} icon={<Icons.Calendar />} color="amber" upcomingList={stats.upcomingExpenses} />
-                <SummaryCard title="Gastos del Día" amount={stats.daily} icon={<Icons.Shopping />} color="rose" />
+            <div className="grid grid-cols-1 gap-4 animate-fade-in">
+                <SummaryCard 
+                    title="Vencimientos Próximos" 
+                    amount={stats.recPending} 
+                    icon={<Icons.Calendar />} 
+                    color="amber" 
+                    upcomingList={stats.upcomingExpenses} 
+                />
             </div>
         );
 
@@ -589,7 +591,7 @@
             );
         };
 
-        const ListView = ({ title, type, items, onAdd, onDelete, onUpdate, onToggle, onSync, placeholder, accent, showCheck, showDueDay, showCategories, showDatePicker }) => {
+        const ListView = ({ title, type, items, onAdd, onDelete, onUpdate, onToggle, onSync, placeholder, accent, showCheck, showDueDay, showCategories, showDatePicker, showMonthlyTotal, stats }) => {
             const [newName, setNewName] = useState('');
             const [newAmountStr, setNewAmountStr] = useState('');
             const [newDueDay, setNewDueDay] = useState('');
@@ -628,6 +630,17 @@
 
             return (
                 <div className="space-y-5 animate-fade-in pb-10">
+                    {/* Resumen de gastos diarios si aplica */}
+                    {showMonthlyTotal && stats && (
+                        <div className="bg-rose-50 border border-rose-100 p-5 rounded-[2rem] flex items-center gap-4 card-shadow mb-2">
+                            <div className="w-10 h-10 bg-rose-500 text-white rounded-2xl flex items-center justify-center shrink-0 border border-rose-600 shadow-sm"><Icons.Shopping /></div>
+                            <div>
+                                <p className="text-rose-400 text-[10px] font-black uppercase tracking-widest">Gastos Diarios del Mes</p>
+                                <p className="text-2xl font-black text-rose-700 tracking-tight">{formatCurrency(stats.daily)}</p>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex justify-between items-center ml-1">
                         <div className="flex items-center gap-2">
                             <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{title}</h2>
@@ -652,7 +665,7 @@
                             </div>
                             {showDatePicker && (
                                 <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Fecha</label>
+                                    <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Fecha de gasto</label>
                                     <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium outline-none" />
                                 </div>
                             )}
@@ -675,7 +688,7 @@
                         </div>
                         {showCategories && (
                             <div className="space-y-1">
-                                <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Categoría</label>
+                                <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Etiqueta / Categoría</label>
                                 <div className="flex gap-2 overflow-x-auto py-1 no-scrollbar">
                                     {categories.map(cat => (<button key={cat} type="button" onClick={() => setNewCategory(cat)} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${newCategory === cat ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-500 border border-slate-100 hover:bg-slate-200'}`}>{cat}</button>))}
                                 </div>
@@ -696,10 +709,8 @@
             const borderColors = { emerald: "border-emerald-500", rose: "border-rose-500", amber: "border-amber-500", slate: "border-slate-500" };
             const categories = item.type === 'recurring' ? CATEGORIES_RECURRING : CATEGORIES_DAILY;
 
-            // Determinar si es una tarjeta de crédito para habilitar pago parcial
             const isCreditCard = useMemo(() => {
                 const name = (item.name || "").toLowerCase();
-                // Se agregan "master" y comprobación específica de tarjetas conocidas para Argentina
                 return (
                     name.includes("visa") || 
                     name.includes("mastercard") || 
@@ -719,7 +730,7 @@
             };
 
             return (
-                <div className={`bg-white p-5 rounded-[1.5rem] border-l-[10px] ${borderColors[accent]} card-shadow flex flex-col gap-4 transition-all ${item.paid ? 'opacity-40 grayscale scale-[0.98]' : 'hover:-translate-y-0.5'}`}>
+                <div className={`bg-white p-5 rounded-[1.5rem] border-l-[10px] ${borderColors[accent]} card-shadow flex flex-col gap-4 transition-all ${item.paid && item.type !== 'income' ? 'opacity-40 grayscale scale-[0.98]' : 'hover:-translate-y-0.5'}`}>
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center flex-wrap gap-2 mb-1">
