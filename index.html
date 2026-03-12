@@ -19,7 +19,6 @@
         body { background-color: #f8fafc; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
         input::-webkit-inner-spin-button, 
-        input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         .glass-nav {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(12px);
@@ -706,8 +705,23 @@
         const ItemCard = ({ item, accent, onDel, onEdit, onToggle, showCheck, showDueDay }) => {
             const [showPartialInput, setShowPartialInput] = useState(false);
             const [partialVal, setPartialVal] = useState('');
-            const borderColors = { emerald: "border-emerald-500", rose: "border-rose-500", amber: "border-amber-500", slate: "border-slate-500" };
+            
+            const borderColors = { 
+                emerald: "border-emerald-500", 
+                rose: "border-rose-500", 
+                amber: "border-amber-500", 
+                slate: "border-slate-500" 
+            };
+
             const categories = item.type === 'recurring' ? CATEGORIES_RECURRING : CATEGORIES_DAILY;
+
+            // Determinar color de borde basado en el estado de pago para Gastos Fijos
+            const getDynamicBorder = () => {
+                if (item.type === 'recurring') {
+                    return item.paid ? "border-emerald-500" : "border-amber-500";
+                }
+                return borderColors[accent];
+            };
 
             const isCreditCard = useMemo(() => {
                 const name = (item.name || "").toLowerCase();
@@ -730,7 +744,7 @@
             };
 
             return (
-                <div className={`bg-white p-5 rounded-[1.5rem] border-l-[10px] ${borderColors[accent]} card-shadow flex flex-col gap-4 transition-all ${item.paid && item.type !== 'income' ? 'opacity-40 grayscale scale-[0.98]' : 'hover:-translate-y-0.5'}`}>
+                <div className={`bg-white p-5 rounded-[1.5rem] border-l-[10px] ${getDynamicBorder()} card-shadow flex flex-col gap-4 transition-all ${item.type !== 'income' ? 'hover:-translate-y-0.5' : ''}`}>
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center flex-wrap gap-2 mb-1">
