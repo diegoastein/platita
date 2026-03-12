@@ -113,12 +113,24 @@
             const [hideBalance, setHideBalance] = useState(true);
             const [authError, setAuthError] = useState(null);
 
-            // 1. Inicialización de Autenticación
+            // 1. Inicialización de Autenticación Segura (REGLA 3)
             useEffect(() => {
                 const initAuth = async () => {
                     try {
+                        // REGLA 3: Llamar a signInWithCustomToken PRIMERO si existe
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                             await auth.signInWithCustomToken(__initial_auth_token);
+                        } else {
+                            // Solo intentar getRedirectResult en entornos HTTP/HTTPS
+                            if (window.location.protocol.startsWith('http')) {
+                                try {
+                                    const result = await auth.getRedirectResult();
+                                    if (result?.user) setUser(result.user);
+                                } catch (e) {
+                                    // Ignorar errores de redirección en entornos no soportados
+                                    console.log("Sesión de redirección no disponible");
+                                }
+                            }
                         }
                     } catch (e) {
                         console.error("Error Auth Inicial:", e);
@@ -135,20 +147,24 @@
 
             // 2. Suscripción a Datos (Solo si hay usuario autenticado)
             useEffect(() => {
+                // Guard: Prevenir consultas si no hay usuario o si no estamos en entorno seguro
                 if (!user) {
                     setItems([]);
                     return;
                 }
                 
-                const col = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions');
-                const unsubscribe = col.onSnapshot(snapshot => {
-                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    setItems(data);
-                }, (err) => {
-                    console.error("Error Firestore:", err);
-                });
-
-                return () => unsubscribe();
+                try {
+                    const col = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions');
+                    const unsubscribe = col.onSnapshot(snapshot => {
+                        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        setItems(data);
+                    }, (err) => {
+                        console.error("Error Firestore:", err);
+                    });
+                    return () => unsubscribe();
+                } catch (e) {
+                    console.error("Error al configurar onSnapshot:", e);
+                }
             }, [user]);
 
             const selectedMonth = navDate.getMonth();
@@ -184,6 +200,14 @@
                 const provider = new firebase.auth.GoogleAuthProvider();
                 setAuthError(null);
                 setLoading(true);
+
+                // Verificar protocolo antes de disparar login
+                if (!window.location.protocol.startsWith('http')) {
+                    setAuthError("El login manual solo está disponible en dominios HTTP/HTTPS. En el preview, usá el token automático.");
+                    setLoading(false);
+                    return;
+                }
+
                 try {
                     if (useRedirect) {
                         await auth.signInWithRedirect(provider);
@@ -194,11 +218,11 @@
                     console.error("Error Login:", e);
                     setLoading(false);
                     if (e.code === 'auth/popup-closed-by-user') {
-                        setAuthError("El login fue cancelado al cerrar la ventana. Intentá de nuevo o usá el método alternativo.");
+                        setAuthError("El login fue cancelado. Intentá de nuevo o usá el método alternativo.");
                     } else if (e.code === 'auth/popup-blocked') {
-                        setAuthError("El navegador bloqueó la ventana emergente. Por favor habilitala o usá el método alternativo.");
-                    } else if (e.code === 'auth/invalid-action' || e.message.includes('requested action is invalid')) {
-                        setAuthError("Error: Dominio no autorizado. Agregá este dominio en la consola de Firebase (Authorized Domains).");
+                        setAuthError("El navegador bloqueó la ventana. Por favor habilitala.");
+                    } else if (e.code === 'auth/operation-not-supported-in-this-environment') {
+                        setAuthError("Este entorno no soporta login manual. Probá abriendo la app directamente en su URL de GitHub Pages.");
                     } else {
                         setAuthError(`Error: ${e.message}`);
                     }
@@ -644,7 +668,7 @@
                                             <button onClick={() => onToggle(item, 'total')} className="p-3 rounded-2xl transition-all border-2 text-slate-800 hover:text-emerald-600 border-stone-100"><Icons.Check /></button>
                                             {isCC && <button onClick={() => setShowPartialInput(!showPartialInput)} className={`p-3 rounded-2xl transition-all border-2 ${showPartialInput ? 'bg-amber-50 text-amber-600 border-amber-300' : 'text-slate-800 border-stone-100'}`}>P</button>}
                                         </>
-                                    ) : <button onClick={() => onToggle(item)} className="p-3 rounded-2xl transition-all border-2 text-emerald-700 bg-emerald-100 border-emerald-500"><Icons.Check /></button>}
+                                    ) : <button onClick={() => onToggle(item)} className="p-3 rounded-2xl transition-all border-2 text-emerald-700 bg-emerald-50 border-emerald-500"><Icons.Check /></button>}
                                 </div>
                             )}
                             <button onClick={() => onDel(item.id)} className="p-3 text-slate-800 hover:text-rose-600 hover:bg-rose-50 border-2 border-stone-100 rounded-2xl transition-all shadow-sm"><Icons.Trash /></button>
