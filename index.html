@@ -27,7 +27,6 @@
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
         input:focus { outline: none; border-color: #0f172a; }
         
-        /* Ajustes para PC */
         @media (min-width: 768px) {
             .main-container { max-width: 1024px; margin: 0 auto; }
             .desktop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
@@ -69,7 +68,8 @@
             Analysis: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2v2m3 10v-3a2 2 0 012-2h2a2 2 0 012 2v3m2 0h-5m-9 0H3m9 0a9 9 0 0118 0v1H3v-1z" /></svg>,
             Settings: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
             Copy: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>,
-            Close: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            Close: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>,
+            Alert: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
         };
 
         const formatCurrency = (val) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(val || 0);
@@ -90,13 +90,11 @@
             const [loginData, setLoginData] = useState({ email: '', password: '' });
             const [authError, setAuthError] = useState(null);
 
-            // Auth logic
             useEffect(() => {
                 const unsubscribe = auth.onAuthStateChanged(u => { setUser(u); setLoading(false); });
                 return () => unsubscribe();
             }, []);
 
-            // Data Sync
             useEffect(() => {
                 if (!user) return;
                 const path = `artifacts/${appId}/users/${user.uid}/transactions`;
@@ -104,7 +102,6 @@
                     setItems(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
                 });
                 
-                // Cargar categorías personalizadas
                 db.collection(`artifacts/${appId}/users/${user.uid}/settings`).doc('categories').get().then(doc => {
                     if (doc.exists) setCategories([...DEFAULT_CATEGORIES, ...doc.data().custom]);
                 });
@@ -120,12 +117,25 @@
                     return d.getMonth() === month && d.getFullYear() === year;
                 });
 
+                const today = new Date();
+                const currentDay = today.getDate();
+                const isCurrentMonth = month === today.getMonth() && year === today.getFullYear();
+                const isPastMonth = navDate < new Date(today.getFullYear(), today.getMonth(), 1);
+
                 const income = currentMonthItems.filter(i => i.type === 'income').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
                 const recPaid = currentMonthItems.filter(i => i.type === 'recurring' && i.paid).reduce((a, c) => a + (c.paymentType === 'partial' ? (parseFloat(c.paidAmount) || 0) : (parseFloat(c.amount) || 0)), 0);
                 const recPending = currentMonthItems.filter(i => i.type === 'recurring' && !i.paid).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
                 const daily = currentMonthItems.filter(i => i.type === 'daily').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
                 
-                const upcoming = currentMonthItems.filter(i => i.type === 'recurring' && !i.paid).sort((a,b) => (a.dueDay || 99) - (b.dueDay || 99)).slice(0, 5);
+                // Filtramos gastos sin importe asignado para "Próximos Vencimientos"
+                const upcoming = currentMonthItems
+                    .filter(i => i.type === 'recurring' && !i.paid && (parseFloat(i.amount) > 0))
+                    .map(i => ({
+                        ...i,
+                        isOverdue: (isCurrentMonth && currentDay > i.dueDay) || isPastMonth
+                    }))
+                    .sort((a,b) => (a.dueDay || 99) - (b.dueDay || 99))
+                    .slice(0, 5);
 
                 return { income, recPaid, recPending, daily, balance: income - recPaid - daily, totalSpent: recPaid + daily, currentMonthItems, upcoming };
             }, [items, navDate]);
@@ -179,6 +189,7 @@
                                 type: 'recurring',
                                 category: 'Tarjetas',
                                 paid: false,
+                                dueDay: item.dueDay || 1,
                                 date: nextMonth.toISOString()
                             });
                         }
@@ -236,13 +247,13 @@
             if (!user) return (
                 <div className="flex flex-col h-screen items-center justify-center bg-white p-8 animate-fade-in">
                     <div className="bg-slate-900 text-white p-5 rounded-[2.5rem] mb-6 shadow-2xl"><Icons.Wallet /></div>
-                    <h1 className="text-4xl font-black text-slate-900 mb-2">Platita</h1>
-                    <p className="text-slate-500 mb-10 text-center">Tus finanzas bajo control total.</p>
+                    <h1 className="text-4xl font-black text-slate-900 mb-2 text-center tracking-tighter leading-none">Platita</h1>
+                    <p className="text-slate-500 mb-10 text-center text-sm font-medium">Gestión inteligente de tus gastos.</p>
                     <form onSubmit={handleLogin} className="w-full max-w-xs space-y-4">
-                        <input type="email" required className="w-full p-4 bg-slate-50 border rounded-2xl outline-none" placeholder="Email" value={loginData.email} onChange={e=>setLoginData({...loginData, email: e.target.value})} />
-                        <input type="password" required className="w-full p-4 bg-slate-50 border rounded-2xl outline-none" placeholder="Contraseña" value={loginData.password} onChange={e=>setLoginData({...loginData, password: e.target.value})} />
+                        <input type="email" required className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none" placeholder="Email" value={loginData.email} onChange={e=>setLoginData({...loginData, email: e.target.value})} />
+                        <input type="password" required className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none" placeholder="Contraseña" value={loginData.password} onChange={e=>setLoginData({...loginData, password: e.target.value})} />
                         {authError && <p className="text-rose-500 text-xs font-bold text-center">{authError}</p>}
-                        <button type="submit" className="w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-lg shadow-xl">Ingresar</button>
+                        <button type="submit" className="w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-lg shadow-xl active:scale-95 transition-transform">Ingresar</button>
                     </form>
                 </div>
             );
@@ -278,7 +289,6 @@
                                         </div>
                                     </div>
                                 </div>
-
                                 <div className="hidden md:block">
                                     <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} isSmall />
                                 </div>
@@ -289,15 +299,15 @@
                     <main className="main-container px-5 space-y-8">
                         {view === 'dashboard' && (
                             <div className="space-y-6">
-                                <div className="flex flex-col md:flex-row gap-4 items-center justify-center">
-                                    <button onClick={copyPreviousMonth} className="w-full md:w-auto md:px-8 bg-slate-900 text-white p-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 shadow-lg hover:bg-slate-800 transition-all">
+                                <div className="flex justify-center">
+                                    <button onClick={copyPreviousMonth} className="bg-slate-900 text-white px-6 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 transition-all active:scale-95">
                                         <Icons.Copy /> Copiar conceptos anteriores
                                     </button>
                                 </div>
 
-                                <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border shadow-sm space-y-6">
+                                <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0"><Icons.Calendar /></div>
+                                        <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><Icons.Calendar /></div>
                                         <div className="flex-1">
                                             <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Pendientes Próximos</p>
                                             <p className="text-3xl font-black text-slate-800">{formatCurrency(stats.recPending)}</p>
@@ -305,21 +315,20 @@
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {stats.upcoming?.length > 0 ? stats.upcoming.map(item => (
-                                            <div key={item.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                                <span className="text-xs font-black text-slate-600 uppercase truncate mr-2">{item.name}</span>
-                                                <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap">Día {item.dueDay}</span>
+                                            <div key={item.id} className={`flex justify-between items-center p-4 rounded-2xl border ${item.isOverdue ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-100'}`}>
+                                                <div className="min-w-0">
+                                                    <span className="text-xs font-black text-slate-600 uppercase truncate block mr-2">{item.name}</span>
+                                                    {item.isOverdue && <span className="text-[8px] font-black text-rose-500 uppercase tracking-tighter">Vencido</span>}
+                                                </div>
+                                                <span className={`${item.isOverdue ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'} px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap ml-2`}>Día {item.dueDay}</span>
                                             </div>
-                                        )) : <p className="text-slate-400 text-xs font-medium italic">No hay pagos pendientes para este mes.</p>}
+                                        )) : <p className="text-slate-400 text-xs font-medium italic">No hay pagos pendientes con importe asignado.</p>}
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {view === 'analysis' && (
-                            <div className="animate-fade-in">
-                                <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} />
-                            </div>
-                        )}
+                        {view === 'analysis' && <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} />}
                         
                         {(view === 'income' || view === 'recurring' || view === 'daily') && (
                             <ListView 
@@ -333,36 +342,30 @@
                                 onDelete={id => db.collection(`artifacts/${appId}/users/${user.uid}/transactions`).doc(id).delete()}
                                 accent={view === 'income' ? 'emerald' : view === 'recurring' ? 'amber' : 'rose'}
                                 stats={stats}
-                                showDailySummary={view === 'daily'}
+                                navDate={navDate}
                             />
                         )}
 
                         {view === 'settings' && (
-                            <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-sm border space-y-8 animate-fade-in">
-                                <div>
-                                    <h2 className="text-2xl font-black mb-2 text-slate-900 tracking-tight">Configuración</h2>
-                                    <p className="text-slate-400 text-sm">Gestiona tus etiquetas y preferencias.</p>
-                                </div>
+                            <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-sm border border-slate-100 space-y-8 animate-fade-in">
+                                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Configuración</h2>
                                 <div className="space-y-4">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tus Etiquetas</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tus Etiquetas</p>
                                     <div className="flex flex-wrap gap-2">
                                         {categories.map(c => (
-                                            <span key={c} className="group relative bg-slate-50 border border-slate-100 px-4 py-2 rounded-full text-xs font-bold text-slate-600 shadow-sm flex items-center gap-2 transition-all">
+                                            <span key={c} className="group relative bg-slate-50 border border-slate-100 px-4 py-2 rounded-full text-xs font-bold text-slate-600 shadow-sm flex items-center gap-2">
                                                 {c}
                                                 {!DEFAULT_CATEGORIES.includes(c) && (
-                                                    <button 
-                                                        onClick={() => removeCategory(c)} 
-                                                        className="text-slate-300 hover:text-rose-500 transition-colors"
-                                                    >
+                                                    <button onClick={() => removeCategory(c)} className="text-slate-300 hover:text-rose-500 transition-colors">
                                                         <Icons.Close />
                                                     </button>
                                                 )}
                                             </span>
                                         ))}
                                     </div>
-                                    <form onSubmit={e => { e.preventDefault(); addCategory(e.target.cat.value); e.target.reset(); }} className="flex gap-2 max-w-sm">
+                                    <form onSubmit={e => { e.preventDefault(); addCategory(e.target.cat.value); e.target.reset(); }} className="flex gap-2 max-w-sm pt-2">
                                         <input name="cat" className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm" placeholder="Nueva etiqueta..." />
-                                        <button className="bg-slate-900 text-white px-6 rounded-2xl font-black hover:bg-slate-800 transition-all shadow-lg">+</button>
+                                        <button className="bg-slate-900 text-white px-6 rounded-2xl font-black shadow-lg hover:bg-slate-800 transition-all">+</button>
                                     </form>
                                 </div>
                             </div>
@@ -389,21 +392,41 @@
             </button>
         );
 
-        const ListView = ({ title, type, items, categories, onAdd, onUpdate, onToggle, onDelete, accent, stats, showDailySummary }) => {
+        const ListView = ({ title, type, items, categories, onAdd, onUpdate, onToggle, onDelete, accent, stats, navDate }) => {
             const [newName, setNewName] = useState('');
             const [newAmount, setNewAmount] = useState('');
             const [newCat, setNewCat] = useState('General');
+            const [newDueDay, setNewDueDay] = useState('1');
+            const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
 
             const handleAdd = (e) => {
                 e.preventDefault();
                 if (!newName) return;
-                onAdd({ name: newName, amount: parseLocaleNumber(newAmount), category: newCat, type, paid: type === 'income', dueDay: type === 'recurring' ? 1 : null });
+                
+                const data = { 
+                    name: newName, 
+                    amount: parseLocaleNumber(newAmount), 
+                    category: newCat, 
+                    type, 
+                    paid: type === 'income' 
+                };
+
+                if (type === 'recurring') {
+                    data.dueDay = parseInt(newDueDay) || 1;
+                    const d = new Date(navDate);
+                    d.setDate(data.dueDay);
+                    data.date = d.toISOString();
+                } else if (type === 'daily') {
+                    data.date = new Date(newDate).toISOString();
+                }
+
+                onAdd(data);
                 setNewName(''); setNewAmount('');
             };
 
             return (
                 <div className="space-y-6 animate-fade-in">
-                    {showDailySummary && (
+                    {type === 'daily' && (
                         <div className="bg-rose-50 border border-rose-100 p-6 md:p-8 rounded-[2.5rem] flex items-center gap-6 shadow-sm mb-2">
                             <div className="w-14 h-14 bg-rose-500 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg"><Icons.Shopping /></div>
                             <div>
@@ -413,14 +436,23 @@
                         </div>
                     )}
                     <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-1">{title}</h2>
-                    <form onSubmit={handleAdd} className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border space-y-4">
+                    <form onSubmit={handleAdd} className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
                         <div className="flex flex-col md:flex-row gap-4">
                             <input className="flex-[2] p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium" placeholder="Descripción" value={newName} onChange={e=>setNewName(e.target.value)} />
                             <div className="flex-1 flex gap-2">
                                 <input className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black" placeholder="$ 0,00" value={newAmount} onChange={e=>setNewAmount(e.target.value)} />
+                                {type === 'recurring' && (
+                                    <input type="number" min="1" max="31" className="w-20 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-center" placeholder="Día" value={newDueDay} onChange={e=>setNewDueDay(e.target.value)} title="Día de vencimiento" />
+                                )}
                                 <button className="bg-slate-900 text-white px-8 rounded-2xl font-black shadow-lg hover:bg-slate-800 transition-all"><Icons.Plus /></button>
                             </div>
                         </div>
+                        {type === 'daily' && (
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Fecha del Gasto</label>
+                                <input type="date" className="w-full md:w-auto p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium" value={newDate} onChange={e=>setNewDate(e.target.value)} />
+                            </div>
+                        )}
                         <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
                             {categories.map(cat => (
                                 <button key={cat} type="button" onClick={() => setNewCat(cat)} className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${newCat === cat ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'}`}>{cat}</button>
@@ -428,64 +460,95 @@
                         </div>
                     </form>
                     <div className="desktop-grid">
-                        {items.map(item => <ItemCard key={item.id} item={item} onUpdate={onUpdate} onToggle={onToggle} onDelete={onDelete} categories={categories} accent={accent} />)}
+                        {items.sort((a,b) => {
+                            if (type === 'recurring') return (a.dueDay || 0) - (b.dueDay || 0);
+                            return new Date(b.date) - new Date(a.date);
+                        }).map(item => <ItemCard key={item.id} item={item} onUpdate={onUpdate} onToggle={onToggle} onDelete={onDelete} accent={accent} navDate={navDate} />)}
                     </div>
                 </div>
             );
         };
 
-        const ItemCard = ({ item, onUpdate, onToggle, onDelete, categories, accent }) => {
+        const ItemCard = ({ item, onUpdate, onToggle, onDelete, accent, navDate }) => {
             const [isEditing, setIsEditing] = useState(false);
             const [editName, setEditName] = useState(item.name);
             const [editAmount, setEditAmount] = useState(item.amount);
+            const [editDate, setEditDate] = useState(item.date ? item.date.split('T')[0] : '');
+            const [editDueDay, setEditDueDay] = useState(item.dueDay || '');
             const [showPartial, setShowPartial] = useState(false);
             const [partialVal, setPartialVal] = useState('');
             
             const isCC = item.name.toLowerCase().includes('visa') || item.name.toLowerCase().includes('master');
             const colorClass = { emerald: 'border-emerald-500', amber: 'border-amber-500', rose: 'border-rose-500' }[accent];
 
+            // Lógica de vencimiento
+            const today = new Date();
+            const currentDay = today.getDate();
+            const isCurrentMonth = navDate && navDate.getMonth() === today.getMonth() && navDate.getFullYear() === today.getFullYear();
+            const isPastMonth = navDate && navDate < new Date(today.getFullYear(), today.getMonth(), 1);
+            const isOverdue = item.type === 'recurring' && !item.paid && ((isCurrentMonth && currentDay > item.dueDay) || isPastMonth);
+
             const saveEdit = () => {
-                onUpdate(item.id, { name: editName, amount: parseLocaleNumber(editAmount) });
+                const updates = { name: editName, amount: parseLocaleNumber(editAmount) };
+                if (item.type === 'daily') updates.date = new Date(editDate).toISOString();
+                if (item.type === 'recurring') updates.dueDay = parseInt(editDueDay) || 1;
+                onUpdate(item.id, updates);
                 setIsEditing(false);
             };
 
             return (
-                <div className={`bg-white p-6 rounded-[2.2rem] border-l-[10px] ${item.paid && item.type !== 'income' ? 'border-emerald-500 opacity-60' : colorClass} shadow-sm space-y-4 animate-fade-in hover:shadow-md transition-shadow`}>
+                <div className={`bg-white p-6 rounded-[2.2rem] border-l-[10px] transition-all animate-fade-in hover:shadow-md ${item.paid && item.type !== 'income' ? 'border-emerald-500 opacity-60' : isOverdue ? 'border-rose-500 ring-2 ring-rose-100 shadow-rose-100' : colorClass} shadow-sm space-y-4`}>
                     <div className="flex justify-between items-start gap-4">
                         <div className="flex-1 min-w-0">
                             {isEditing ? (
                                 <div className="space-y-3">
                                     <input className="w-full text-[11px] font-black uppercase p-2 border-b border-slate-200 outline-none focus:border-slate-900" value={editName} onChange={e=>setEditName(e.target.value)} autoFocus />
-                                    <input className="w-full text-2xl font-black p-2 border-b border-slate-200 outline-none focus:border-slate-900" value={editAmount} onChange={e=>setEditAmount(e.target.value)} onBlur={saveEdit} onKeyDown={e=>e.key==='Enter' && saveEdit()} />
+                                    <div className="flex gap-2">
+                                        <input className="flex-1 text-2xl font-black p-2 border-b border-slate-200 outline-none focus:border-slate-900" value={editAmount} onChange={e=>setEditAmount(e.target.value)} />
+                                        {item.type === 'recurring' && <input type="number" className="w-16 text-lg font-black p-2 border-b border-slate-200 outline-none focus:border-slate-900" value={editDueDay} onChange={e=>setEditDueDay(e.target.value)} title="Día de vto" />}
+                                    </div>
+                                    {item.type === 'daily' && <input type="date" className="w-full text-xs font-black p-2 border border-slate-100 rounded-xl" value={editDate} onChange={e=>setEditDate(e.target.value)} />}
+                                    <div className="flex gap-2 pt-2">
+                                        <button onClick={saveEdit} className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase">Guardar</button>
+                                        <button onClick={()=>setIsEditing(false)} className="bg-slate-100 text-slate-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase">Cancelar</button>
+                                    </div>
                                 </div>
                             ) : (
                                 <div onClick={() => setIsEditing(true)} className="cursor-text">
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className="text-[10px] font-black text-slate-500 uppercase truncate">{item.name}</span>
-                                        <span className="text-[9px] font-black bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100 text-slate-400 uppercase">{item.category}</span>
+                                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border uppercase ${isOverdue ? 'bg-rose-500 text-white border-rose-500 animate-pulse' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>{item.category}</span>
                                     </div>
                                     <p className="text-2xl font-black text-slate-900 tracking-tighter">{formatCurrency(item.amount)}</p>
+                                    <div className="flex gap-2 mt-2">
+                                        {item.type === 'recurring' && (
+                                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${isOverdue ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-amber-50 text-amber-500 border-amber-100'}`}>
+                                                {isOverdue ? "¡VENCIDO!" : `Vence Día ${item.dueDay || '---'}`}
+                                            </span>
+                                        )}
+                                        {item.type === 'daily' && <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{new Date(item.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}</span>}
+                                    </div>
                                 </div>
                             )}
-                            {item.paid && item.paymentType === 'partial' && <p className="text-[10px] font-black text-amber-500 uppercase mt-2 italic flex items-center gap-1"><span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span> Abonado: {formatCurrency(item.paidAmount)}</p>}
+                            {item.paid && item.paymentType === 'partial' && <p className="text-[10px] font-black text-amber-500 uppercase mt-3 italic flex items-center gap-1"><span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span> Abonado: {formatCurrency(item.paidAmount)}</p>}
                         </div>
                         <div className="flex gap-2 shrink-0">
                             {item.type !== 'income' && (
                                 <div className="flex gap-1">
                                     {!item.paid ? (
                                         <>
-                                            <button onClick={() => onToggle(item)} className="p-3.5 rounded-2xl border border-slate-100 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-all"><Icons.Check /></button>
-                                            {isCC && <button onClick={() => setShowPartial(!showPartial)} className="p-3.5 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs hover:bg-amber-50 transition-all">P</button>}
+                                            <button onClick={() => onToggle(item)} className={`p-3.5 rounded-2xl border transition-all shadow-sm ${isOverdue ? 'bg-rose-50 text-rose-500 border-rose-200 hover:bg-rose-500 hover:text-white' : 'border-slate-100 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50'}`}><Icons.Check /></button>
+                                            {isCC && <button onClick={() => setShowPartial(!showPartial)} className="p-3.5 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs hover:bg-amber-50 transition-all shadow-sm">P</button>}
                                         </>
                                     ) : <button onClick={() => onToggle(item)} className="p-3.5 rounded-2xl bg-emerald-500 text-white shadow-lg scale-105 transition-all"><Icons.Check /></button>}
                                 </div>
                             )}
-                            <button onClick={() => onDelete(item.id)} className="p-3.5 rounded-2xl border border-slate-100 text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all"><Icons.Trash /></button>
+                            <button onClick={() => onDelete(item.id)} className="p-3.5 rounded-2xl border border-slate-100 text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all shadow-sm"><Icons.Trash /></button>
                         </div>
                     </div>
                     {showPartial && !item.paid && (
                         <div className="flex gap-2 items-end p-4 bg-amber-50/50 rounded-3xl border border-amber-100/50 animate-fade-in">
-                            <input className="flex-1 p-3 bg-white border border-amber-200 rounded-xl text-xs font-black outline-none shadow-sm" placeholder="Monto parcial..." value={partialVal} onChange={e => setPartialVal(e.target.value)} />
+                            <input type="text" className="flex-1 p-3 bg-white border border-amber-200 rounded-xl text-xs font-black outline-none shadow-sm" placeholder="Monto parcial..." value={partialVal} onChange={e => setPartialVal(e.target.value)} />
                             <button onClick={() => {onToggle(item, 'partial', parseLocaleNumber(partialVal)); setShowPartial(false);}} className="bg-amber-500 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase shadow-lg hover:bg-amber-600 transition-all">Confirmar</button>
                         </div>
                     )}
@@ -534,7 +597,7 @@
 
             if (isSmall) {
                 return (
-                    <div className="flex items-center gap-8 bg-white/5 p-6 rounded-[2.5rem] border border-white/10">
+                    <div className="flex items-center gap-8 bg-slate-900/5 p-6 rounded-[2.5rem] border border-slate-100">
                         <div className="relative w-32 h-32 shrink-0">
                             <canvas ref={chartRef}></canvas>
                         </div>
@@ -542,7 +605,7 @@
                             {byCategory.slice(0, 4).map(([cat, amount]) => (
                                 <div key={cat} className="flex justify-between items-center text-[10px] font-black uppercase">
                                     <span className="text-slate-400">{cat}</span>
-                                    <span className="text-white">{formatCurrency(amount)}</span>
+                                    <span className="text-slate-900">{formatCurrency(amount)}</span>
                                 </div>
                             ))}
                         </div>
@@ -564,7 +627,7 @@
                     </div>
                     <div className="w-full space-y-4">
                         {byCategory.length === 0 ? (
-                            <p className="text-sm text-slate-400 italic text-center">No hay gastos registrados aún.</p>
+                            <p className="text-sm text-slate-400 italic text-center">Sin datos registrados.</p>
                         ) : byCategory.map(([cat, amount]) => (
                             <div key={cat} className="space-y-2">
                                 <div className="flex justify-between items-center text-[11px] font-black uppercase">
