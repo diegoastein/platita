@@ -113,7 +113,7 @@
             const [hideBalance, setHideBalance] = useState(true);
             const [authError, setAuthError] = useState(null);
 
-            // 1. Inicialización de Autenticación (REGLA 3)
+            // 1. Inicialización de Autenticación
             useEffect(() => {
                 const initAuth = async () => {
                     try {
@@ -180,21 +180,27 @@
                 return { income, recPaid, recPending, daily, balance: income - recPaid - daily, totalSpent, spendRatio, upcomingExpenses };
             }, [currentMonthItems]);
 
-            const handleGoogleLogin = async () => {
+            const handleGoogleLogin = async (useRedirect = false) => {
                 const provider = new firebase.auth.GoogleAuthProvider();
                 setAuthError(null);
+                setLoading(true);
                 try {
-                    setLoading(true);
-                    await auth.signInWithPopup(provider);
+                    if (useRedirect) {
+                        await auth.signInWithRedirect(provider);
+                    } else {
+                        await auth.signInWithPopup(provider);
+                    }
                 } catch (e) {
                     console.error("Error Login:", e);
                     setLoading(false);
-                    if (e.code === 'auth/popup-blocked') {
-                        auth.signInWithRedirect(provider);
+                    if (e.code === 'auth/popup-closed-by-user') {
+                        setAuthError("El login fue cancelado al cerrar la ventana. Intentá de nuevo o usá el método alternativo.");
+                    } else if (e.code === 'auth/popup-blocked') {
+                        setAuthError("El navegador bloqueó la ventana emergente. Por favor habilitala o usá el método alternativo.");
                     } else if (e.code === 'auth/invalid-action' || e.message.includes('requested action is invalid')) {
-                        setAuthError("Error: El dominio actual no está autorizado en la consola de Firebase o la clave API está restringida. Por favor, revisa la configuración de 'Authorized Domains' en Firebase.");
+                        setAuthError("Error: Dominio no autorizado. Agregá este dominio en la consola de Firebase (Authorized Domains).");
                     } else {
-                        setAuthError(`Error de autenticación: ${e.message}`);
+                        setAuthError(`Error: ${e.message}`);
                     }
                 }
             };
@@ -300,9 +306,14 @@
                         </div>
                     )}
 
-                    <button onClick={handleGoogleLogin} className="bg-slate-900 text-white w-full max-w-sm py-5 rounded-[1.5rem] font-black text-lg flex items-center justify-center gap-3 active:scale-95 transition-all card-shadow">
-                        Ingresar con Google
-                    </button>
+                    <div className="flex flex-col gap-3 w-full max-w-sm">
+                        <button onClick={() => handleGoogleLogin(false)} className="bg-slate-900 text-white w-full py-5 rounded-[1.5rem] font-black text-lg flex items-center justify-center gap-3 active:scale-95 transition-all card-shadow">
+                            Ingresar con Google
+                        </button>
+                        <button onClick={() => handleGoogleLogin(true)} className="text-slate-500 text-sm font-bold hover:text-slate-800 transition-colors py-2">
+                            ¿Problemas? Usar método alternativo
+                        </button>
+                    </div>
                 </div>
             );
 
