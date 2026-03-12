@@ -47,7 +47,6 @@
             .desktop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
         }
 
-        /* Fix para evitar scroll horizontal en cards */
         .item-card {
             max-width: 100%;
             overflow: hidden;
@@ -257,6 +256,7 @@
                 const prevItems = items.filter(item => {
                     if (!item.date) return false;
                     const d = new Date(item.date);
+                    // Usamos UTC para comparar consistentemente
                     return d.getUTCMonth() === prevMonth && d.getUTCFullYear() === prevYear && (item.type === 'income' || item.type === 'recurring');
                 });
 
@@ -307,8 +307,8 @@
                     <h1 className="text-4xl font-black text-slate-900 mb-2 text-center tracking-tighter leading-none">Platita</h1>
                     <p className="text-slate-500 mb-10 text-center text-sm font-medium">Gestión inteligente de tus gastos.</p>
                     <form onSubmit={handleLogin} className="w-full max-w-xs space-y-4">
-                        <input type="email" required className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none" placeholder="Email" value={loginData.email} onChange={e=>setLoginData({...loginData, email: e.target.value})} />
-                        <input type="password" required className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none" placeholder="Contraseña" value={loginData.password} onChange={e=>setLoginData({...loginData, password: e.target.value})} />
+                        <input type="email" required className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none text-slate-800" placeholder="Email" value={loginData.email} onChange={e=>setLoginData({...loginData, email: e.target.value})} />
+                        <input type="password" required className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none text-slate-800" placeholder="Contraseña" value={loginData.password} onChange={e=>setLoginData({...loginData, password: e.target.value})} />
                         {authError && <p className="text-rose-500 text-xs font-bold text-center">{authError}</p>}
                         <button type="submit" className="w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-lg shadow-xl active:scale-95 transition-transform">Ingresar</button>
                     </form>
@@ -316,7 +316,7 @@
             );
 
             return (
-                <div className="min-h-screen pb-32 bg-slate-50 animate-fade-in relative w-full">
+                <div className="min-h-screen pb-32 bg-slate-50 animate-fade-in relative w-full overflow-x-hidden">
                     <header className="bg-white border-b border-slate-100 md:rounded-b-[3rem] shadow-sm mb-6">
                         <div className="main-container py-5">
                             <div className="flex items-center justify-between mb-6">
@@ -339,7 +339,7 @@
                                             {hideBalance ? "Mostrar" : "Ocultar"}
                                         </button>
                                         <p className="text-slate-400 text-[10px] md:text-xs font-black uppercase tracking-widest mb-1">Saldo Disponible</p>
-                                        <h2 className="text-4xl md:text-5xl font-black mb-6 tracking-tight">{hideBalance ? "$ ••••••" : formatCurrency(stats.balance)}</h2>
+                                        <h2 className="text-4xl md:text-5xl font-black mb-6 tracking-tight leading-none">{hideBalance ? "$ ••••••" : formatCurrency(stats.balance)}</h2>
                                         <div className="grid grid-cols-2 gap-8 border-t border-white/10 pt-6 w-full text-center">
                                             <div><p className="text-slate-500 text-[10px] uppercase font-black mb-1">Ingresos</p><p className="text-emerald-400 font-black text-lg">{hideBalance ? "---" : formatCurrency(stats.income)}</p></div>
                                             <div><p className="text-slate-500 text-[10px] uppercase font-black mb-1">Egresos</p><p className="text-rose-400 font-black text-lg">{hideBalance ? "---" : formatCurrency(stats.totalSpent)}</p></div>
@@ -357,7 +357,7 @@
                         {view === 'dashboard' && (
                             <div className="space-y-6">
                                 <div className="flex justify-center">
-                                    <button onClick={copyPreviousMonth} className="bg-slate-900 text-white px-5 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 transition-all active:scale-95">
+                                    <button onClick={copyPreviousMonth} className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 transition-all active:scale-95">
                                         <Icons.Copy /> Conceptos anteriores
                                     </button>
                                 </div>
@@ -367,7 +367,7 @@
                                         <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><Icons.Calendar /></div>
                                         <div className="flex-1">
                                             <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Pendientes Próximos</p>
-                                            <p className="text-3xl font-black text-slate-800">{formatCurrency(stats.recPending)}</p>
+                                            <p className="text-3xl font-black text-slate-800 tracking-tight">{formatCurrency(stats.recPending)}</p>
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -410,7 +410,7 @@
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tus Etiquetas</p>
                                     <div className="flex flex-wrap gap-2">
                                         {categories.map(c => (
-                                            <span key={c} className="group relative bg-slate-50 border border-slate-100 px-4 py-2 rounded-full text-xs font-bold text-slate-600 shadow-sm flex items-center gap-2">
+                                            <span key={c} className="group relative bg-slate-50 border border-slate-100 px-4 py-2 rounded-full text-xs font-bold text-slate-600 shadow-sm flex items-center gap-2 transition-all">
                                                 {c}
                                                 {!DEFAULT_CATEGORIES.includes(c) && (
                                                     <button onClick={() => removeCategory(c)} className="text-slate-300 hover:text-rose-500 transition-colors">
@@ -421,7 +421,7 @@
                                         ))}
                                     </div>
                                     <form onSubmit={e => { e.preventDefault(); addCategory(e.target.cat.value); e.target.reset(); }} className="flex gap-2 max-w-sm pt-2">
-                                        <input name="cat" className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm" placeholder="Nueva etiqueta..." />
+                                        <input name="cat" className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none text-slate-800" placeholder="Nueva etiqueta..." />
                                         <button className="bg-slate-900 text-white px-6 rounded-2xl font-black shadow-lg hover:bg-slate-800 transition-all">+</button>
                                     </form>
                                 </div>
@@ -444,7 +444,7 @@
         };
 
         const NavTab = ({ active, onClick, icon, label }) => (
-            <button onClick={onClick} className={`p-2.5 rounded-2xl flex flex-col items-center gap-1 transition-all md:px-6 md:hover:bg-slate-50 ${active ? 'bg-slate-900 text-white shadow-lg scale-105' : 'text-slate-400'}`}>
+            <button onClick={onClick} className={`p-3 rounded-2xl flex flex-col items-center gap-1 transition-all md:px-6 md:hover:bg-slate-50 ${active ? 'bg-slate-900 text-white shadow-lg scale-105' : 'text-slate-400'}`}>
                 {icon} <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest">{label}</span>
             </button>
         );
@@ -471,7 +471,7 @@
                 if (type === 'recurring') {
                     data.dueDay = parseInt(newDueDay) || 1;
                     const d = new Date(navDate);
-                    d.setDate(data.dueDay);
+                    d.setUTCDate(data.dueDay);
                     data.date = d.toISOString();
                 } else if (type === 'daily') {
                     data.date = new Date(newDate).toISOString();
@@ -488,31 +488,31 @@
                             <div className="w-14 h-14 bg-rose-500 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg mx-auto md:mx-0"><Icons.Shopping /></div>
                             <div>
                                 <p className="text-rose-400 text-[10px] font-black uppercase tracking-widest mb-1">Gasto Diario del Mes</p>
-                                <p className="text-3xl md:text-4xl font-black text-rose-700 tracking-tight">{formatCurrency(stats.daily)}</p>
+                                <p className="text-3xl md:text-4xl font-black text-rose-700 tracking-tight leading-none">{formatCurrency(stats.daily)}</p>
                             </div>
                         </div>
                     )}
                     <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-1">{title}</h2>
                     <form onSubmit={handleAdd} className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
                         <div className="flex flex-col md:flex-row gap-4">
-                            <input className="flex-[2] p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium" placeholder="Descripción" value={newName} onChange={e=>setNewName(e.target.value)} />
+                            <input className="flex-[2] p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium outline-none text-slate-800" placeholder="Descripción" value={newName} onChange={e=>setNewName(e.target.value)} />
                             <div className="flex-1 flex gap-2">
-                                <input className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black" placeholder="$ 0,00" value={newAmount} onChange={e=>setNewAmount(e.target.value)} />
+                                <input className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black outline-none text-slate-800" placeholder="$ 0,00" value={newAmount} onChange={e=>setNewAmount(e.target.value)} />
                                 {type === 'recurring' && (
-                                    <input type="number" min="1" max="31" className="w-20 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-center" placeholder="Día" value={newDueDay} onChange={e=>setNewDueDay(e.target.value)} title="Día de vencimiento" />
+                                    <input type="number" min="1" max="31" className="w-20 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-center outline-none text-slate-800" placeholder="Día" value={newDueDay} onChange={e=>setNewDueDay(e.target.value)} title="Día de vencimiento" />
                                 )}
-                                <button className="bg-slate-900 text-white px-8 rounded-2xl font-black shadow-lg hover:bg-slate-800 transition-all"><Icons.Plus /></button>
+                                <button className="bg-slate-900 text-white px-8 rounded-2xl font-black shadow-lg hover:bg-slate-800 transition-all active:scale-95"><Icons.Plus /></button>
                             </div>
                         </div>
                         {type === 'daily' && (
                             <div className="flex flex-col gap-2">
                                 <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Fecha del Gasto</label>
-                                <input type="date" className="w-full md:w-auto p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium" value={newDate} onChange={e=>setNewDate(e.target.value)} />
+                                <input type="date" className="w-full md:w-auto p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium outline-none text-slate-800" value={newDate} onChange={e=>setNewDate(e.target.value)} />
                             </div>
                         )}
                         <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
                             {categories.map(cat => (
-                                <button key={cat} type="button" onClick={() => setNewCat(cat)} className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${newCat === cat ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'}`}>{cat}</button>
+                                <button key={cat} type="button" onClick={() => setNewCat(cat)} className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${newCat === cat ? 'bg-slate-900 text-white border-slate-900 shadow-md scale-105' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'}`}>{cat}</button>
                             ))}
                         </div>
                     </form>
@@ -520,7 +520,7 @@
                         {items.sort((a,b) => {
                             if (type === 'recurring') return (a.dueDay || 0) - (b.dueDay || 0);
                             return new Date(b.date) - new Date(a.date);
-                        }).map(item => <ItemCard key={item.id} item={item} onUpdate={onUpdate} onToggle={toggleItem} onDelete={onDelete} accent={accent} navDate={navDate} />)}
+                        }).map(item => <ItemCard key={item.id} item={item} onUpdate={onUpdate} onToggle={onToggle} onDelete={onDelete} accent={accent} navDate={navDate} />)}
                     </div>
                 </div>
             );
@@ -540,12 +540,12 @@
 
             const today = new Date();
             const currentDay = today.getDate();
-            const amount = parseFloat(item.amount) || 0;
+            const amountValue = parseFloat(item.amount) || 0;
             
-            const itemDate = item.date ? new Date(item.date) : new Date();
+            const itemDateObj = item.date ? new Date(item.date) : new Date();
             const isCurrentMonth = navDate && navDate.getMonth() === today.getMonth() && navDate.getFullYear() === today.getFullYear();
             const isPastMonth = navDate && navDate < new Date(today.getFullYear(), today.getMonth(), 1);
-            const isOverdue = item.type === 'recurring' && !item.paid && amount > 0 && ((isCurrentMonth && currentDay > item.dueDay) || isPastMonth);
+            const isOverdue = item.type === 'recurring' && !item.paid && amountValue > 0 && ((isCurrentMonth && currentDay > item.dueDay) || isPastMonth);
 
             const saveEdit = () => {
                 const updates = { name: editName, amount: parseLocaleNumber(editAmount) };
@@ -577,14 +577,14 @@
                                         <span className="text-[10px] font-black text-slate-500 uppercase truncate max-w-[120px]">{item.name}</span>
                                         <span className={`text-[8px] font-black px-2 py-0.5 rounded-full border uppercase ${isOverdue ? 'bg-rose-500 text-white border-rose-500 animate-pulse' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>{item.category}</span>
                                     </div>
-                                    <p className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter">{formatCurrency(item.amount)}</p>
+                                    <p className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter leading-tight">{formatCurrency(item.amount)}</p>
                                     <div className="flex gap-2 mt-2 flex-wrap">
                                         {item.type === 'recurring' && (
                                             <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${isOverdue ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-amber-50 text-amber-500 border-amber-100'}`}>
                                                 {isOverdue ? "VENCIDO" : `Día ${item.dueDay || '---'}`}
                                             </span>
                                         )}
-                                        {item.type === 'daily' && <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{itemDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}</span>}
+                                        {item.type === 'daily' && <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{itemDateObj.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}</span>}
                                     </div>
                                 </div>
                             )}
@@ -606,8 +606,8 @@
                     </div>
                     {showPartial && !item.paid && (
                         <div className="flex gap-2 items-end p-4 bg-amber-50/50 rounded-3xl border border-amber-100/50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-                            <input type="text" className="flex-1 p-3 bg-white border border-amber-200 rounded-xl text-xs font-black outline-none shadow-sm" placeholder="Abonado..." value={partialVal} onChange={e => setPartialVal(e.target.value)} />
-                            <button onClick={() => {onToggle(item, 'partial', parseLocaleNumber(partialVal)); setShowPartial(false);}} className="bg-amber-500 text-white px-4 py-2.5 rounded-xl text-[9px] font-black uppercase shadow-lg">Ok</button>
+                            <input type="text" className="flex-1 p-3 bg-white border border-amber-200 rounded-xl text-xs font-black outline-none shadow-sm text-slate-800" placeholder="Abonado..." value={partialVal} onChange={e => setPartialVal(e.target.value)} />
+                            <button onClick={() => {onToggle(item, 'partial', parseLocaleNumber(partialVal)); setShowPartial(false);}} className="bg-amber-500 text-white px-4 py-2.5 rounded-xl text-[9px] font-black uppercase shadow-lg active:scale-90">Ok</button>
                         </div>
                     )}
                 </div>
@@ -672,7 +672,6 @@
             useEffect(() => {
                 if (typeof Chart === 'undefined') return;
                 
-                // Gráfico Circular de Gastos del Mes
                 if (chartRef.current) {
                     if (chartInstance.current) chartInstance.current.destroy();
                     const ctx = chartRef.current.getContext('2d');
@@ -686,7 +685,6 @@
                     });
                 }
 
-                // Gráfico de Barras de Evolución Anual
                 if (trendRef.current && !isSmall) {
                     if (trendInstance.current) trendInstance.current.destroy();
                     const ctxTrend = trendRef.current.getContext('2d');
@@ -747,7 +745,6 @@
 
             return (
                 <div className="space-y-8 animate-fade-in pb-10">
-                    {/* Gráfico de Categorías Mensual */}
                     <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-sm border border-slate-100 md:grid md:grid-cols-2 md:gap-12 items-center">
                         <div className="flex flex-col items-center mb-8 md:mb-0">
                             <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-8">Gastos por Categoría</h3>
@@ -755,7 +752,7 @@
                                 <canvas ref={chartRef}></canvas>
                                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                     <p className="text-[10px] font-black text-slate-400 uppercase">Mes Actual</p>
-                                    <p className="text-3xl font-black text-slate-900 tracking-tight">{formatCurrency(stats.totalSpent)}</p>
+                                    <p className="text-3xl font-black text-slate-900 tracking-tight leading-none">{formatCurrency(stats.totalSpent)}</p>
                                 </div>
                             </div>
                         </div>
@@ -776,17 +773,16 @@
                         </div>
                     </div>
 
-                    {/* Evolución de Gasto Fijo Específico */}
                     <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                             <div>
-                                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">Evolución Anual</h3>
-                                <h4 className="text-xl font-black text-slate-900 tracking-tight">Historial por Gasto Fijo</h4>
+                                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 text-center md:text-left">Evolución Anual</h3>
+                                <h4 className="text-xl font-black text-slate-900 tracking-tight text-center md:text-left">Historial por Gasto Fijo</h4>
                             </div>
                             <select 
                                 value={selectedRecurringName} 
                                 onChange={e => setSelectedRecurringName(e.target.value)}
-                                className="p-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-indigo-200 transition-all cursor-pointer"
+                                className="w-full md:w-auto p-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-indigo-200 transition-all cursor-pointer"
                             >
                                 {recurringNames.length === 0 ? <option>Sin gastos fijos</option> : recurringNames.map(name => (
                                     <option key={name} value={name}>{name}</option>
