@@ -76,18 +76,8 @@
         const DEFAULT_CATEGORIES = ["Hogar", "Servicios", "Impuestos", "Salud", "Educación", "Tarjetas", "Ocio", "Comida", "General"];
         
         const CHART_COLORS = [
-            '#10b981', // Emerald 500
-            '#f43f5e', // Rose 500
-            '#f59e0b', // Amber 500
-            '#6366f1', // Indigo 500
-            '#8b5cf6', // Violet 500
-            '#06b6d4', // Cyan 500
-            '#f97316', // Orange 500
-            '#ec4899', // Pink 500
-            '#14b8a6', // Teal 500
-            '#3b82f6', // Blue 500
-            '#a855f7', // Purple 500
-            '#84cc16'  // Lime 500
+            '#10b981', '#f43f5e', '#f59e0b', '#6366f1', '#8b5cf6', '#06b6d4', 
+            '#f97316', '#ec4899', '#14b8a6', '#3b82f6', '#a855f7', '#84cc16'
         ];
 
         const Icons = {
@@ -163,7 +153,10 @@
                 const isCurrentMonth = month === today.getUTCMonth() && year === today.getUTCFullYear();
                 const isPastMonth = navDate < new Date(today.getUTCFullYear(), today.getUTCMonth(), 1);
 
-                const income = currentMonthItems.filter(i => i.type === 'income').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
+                // --- NUEVA LÓGICA DE INGRESOS ---
+                const incomeCobrado = currentMonthItems.filter(i => i.type === 'income' && i.paid).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
+                const incomePendiente = currentMonthItems.filter(i => i.type === 'income' && !i.paid).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
+                
                 const recPaid = currentMonthItems.filter(i => i.type === 'recurring' && i.paid).reduce((a, c) => a + (c.paymentType === 'partial' ? (parseFloat(c.paidAmount) || 0) : (parseFloat(c.amount) || 0)), 0);
                 const recPending = currentMonthItems.filter(i => i.type === 'recurring' && !i.paid).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
                 const daily = currentMonthItems.filter(i => i.type === 'daily').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
@@ -177,7 +170,17 @@
                     .sort((a,b) => (a.dueDay || 99) - (b.dueDay || 99))
                     .slice(0, 5);
 
-                return { income, recPaid, recPending, daily, balance: income - recPaid - daily, totalSpent: recPaid + daily, currentMonthItems, upcoming };
+                return { 
+                    income: incomeCobrado, 
+                    incomePendiente,
+                    recPaid, 
+                    recPending, 
+                    daily, 
+                    balance: incomeCobrado - recPaid - daily, 
+                    totalSpent: recPaid + daily, 
+                    currentMonthItems, 
+                    upcoming 
+                };
             }, [items, navDate]);
 
             const handleLogin = async (e) => {
@@ -250,7 +253,6 @@
                 if (!user) return;
                 const targetMonth = navDate.getUTCMonth();
                 const targetYear = navDate.getUTCFullYear();
-                
                 const prevDate = new Date(Date.UTC(targetYear, targetMonth - 1, 1));
                 const prevMonth = prevDate.getUTCMonth();
                 const prevYear = prevDate.getUTCFullYear();
@@ -262,10 +264,8 @@
                 });
 
                 if (prevItems.length === 0) return;
-
                 const colRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions');
                 const batch = db.batch();
-                
                 const targetDateStr = new Date(Date.UTC(targetYear, targetMonth, 1)).toISOString().split('T')[0] + 'T12:00:00Z';
 
                 prevItems.forEach(item => {
@@ -274,7 +274,7 @@
                     batch.set(newDoc, {
                         ...dataToCopy,
                         amount: 0,
-                        paid: item.type === 'income',
+                        paid: item.type === 'income' ? false : false, // Los copiamos todos como pendientes
                         paymentType: null,
                         paidAmount: 0,
                         date: targetDateStr,
@@ -339,11 +339,11 @@
                                         <button onClick={() => setHideBalance(!hideBalance)} className="absolute top-4 right-6 text-slate-500 hover:text-white p-2 transition-all">
                                             {hideBalance ? <Icons.Eye /> : <Icons.EyeOff />}
                                         </button>
-                                        <p className="text-slate-400 text-[10px] md:text-xs font-black uppercase tracking-widest mb-1">Saldo Disponible</p>
+                                        <p className="text-slate-400 text-[10px] md:text-xs font-black uppercase tracking-widest mb-1">Saldo Cobrado Disponible</p>
                                         <h2 className="text-4xl md:text-5xl font-black mb-6 tracking-tight leading-none">{hideBalance ? "$ ••••••" : formatCurrency(stats.balance)}</h2>
                                         <div className="grid grid-cols-2 gap-8 border-t border-white/10 pt-6 w-full text-center">
                                             <div><p className="text-slate-500 text-[10px] uppercase font-black mb-1">Ingresos</p><p className="text-emerald-400 font-black text-lg">{hideBalance ? "---" : formatCurrency(stats.income)}</p></div>
-                                            <div><p className="text-slate-500 text-[10px] uppercase font-black mb-1">Egresos</p><p className="text-rose-400 font-black text-lg">{hideBalance ? "---" : formatCurrency(stats.totalSpent)}</p></div>
+                                            <div><p className="text-slate-500 text-[10px] uppercase font-black mb-1">Gastos</p><p className="text-rose-400 font-black text-lg">{hideBalance ? "---" : formatCurrency(stats.totalSpent)}</p></div>
                                         </div>
                                     </div>
                                 </div>
@@ -465,10 +465,9 @@
                     name: newName, 
                     amount: parseLocaleNumber(newAmount), 
                     type, 
-                    paid: type === 'income' 
+                    paid: type === 'income' ? false : false // Por defecto todo entra como pendiente
                 };
 
-                // Solo agregamos categoría si no es de tipo 'income'
                 if (type !== 'income') {
                     data.category = newCat;
                 } else {
@@ -482,6 +481,9 @@
                     data.date = d.toISOString();
                 } else if (type === 'daily') {
                     data.date = new Date(newDate).toISOString();
+                } else {
+                    // Ingresos van a la fecha de navegacion por defecto si no tienen
+                    data.date = navDate.toISOString();
                 }
 
                 onAdd(data);
@@ -499,6 +501,20 @@
                             </div>
                         </div>
                     )}
+                    
+                    {type === 'income' && (
+                        <div className="bg-emerald-50 border border-emerald-100 p-6 md:p-8 rounded-[2.5rem] flex items-center gap-6 shadow-sm mb-2 text-center md:text-left">
+                            <div className="w-14 h-14 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg mx-auto md:mx-0"><Icons.Plus /></div>
+                            <div>
+                                <p className="text-emerald-400 text-[10px] font-black uppercase tracking-widest mb-1">Ingresos Cobrados / Pendientes</p>
+                                <div className="flex items-baseline gap-2">
+                                    <p className="text-3xl font-black text-emerald-700 tracking-tight leading-none">{formatCurrency(stats.income)}</p>
+                                    <p className="text-sm font-bold text-slate-400">/ {formatCurrency(stats.incomePendiente)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-1">{title}</h2>
                     <form onSubmit={handleAdd} className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
                         <div className="flex flex-col md:flex-row gap-4">
@@ -517,8 +533,6 @@
                                 <input type="date" className="w-full md:w-auto p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium outline-none text-slate-800" value={newDate} onChange={e=>setNewDate(e.target.value)} />
                             </div>
                         )}
-                        
-                        {/* Renderizamos categorías solo si NO es 'income' */}
                         {type !== 'income' && (
                             <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
                                 {categories.map(cat => (
@@ -531,7 +545,7 @@
                         {items.sort((a,b) => {
                             if (type === 'recurring') return (a.dueDay || 0) - (b.dueDay || 0);
                             return new Date(b.date) - new Date(a.date);
-                        }).map(item => <ItemCard key={item.id} item={item} onUpdate={onUpdate} onToggle={toggleItem} onDelete={onDelete} accent={accent} navDate={navDate} />)}
+                        }).map(item => <ItemCard key={item.id} item={item} onUpdate={onUpdate} onToggle={onToggle} onDelete={onDelete} accent={accent} navDate={navDate} />)}
                     </div>
                 </div>
             );
@@ -552,8 +566,8 @@
             const today = new Date();
             const currentDay = today.getDate();
             const amountValue = parseFloat(item.amount) || 0;
-            
             const itemDateObj = item.date ? new Date(item.date) : new Date();
+            
             const isCurrentMonth = navDate && navDate.getUTCMonth() === today.getUTCMonth() && navDate.getUTCFullYear() === today.getUTCFullYear();
             const isPastMonth = navDate < new Date(today.getUTCFullYear(), today.getUTCMonth(), 1);
             const isOverdue = item.type === 'recurring' && !item.paid && amountValue > 0 && ((isCurrentMonth && currentDay > item.dueDay) || isPastMonth);
@@ -586,35 +600,39 @@
                                 <div onClick={() => setIsEditing(true)} className="cursor-text">
                                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                                         <span className="text-[10px] font-black text-slate-500 uppercase truncate max-w-[120px]">{item.name}</span>
-                                        {/* Renderizamos etiqueta de categoría solo si NO es 'income' */}
                                         {item.type !== 'income' && (
                                             <span className={`text-[8px] font-black px-2 py-0.5 rounded-full border uppercase ${isOverdue ? 'bg-rose-500 text-white border-rose-500 animate-pulse' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>{item.category}</span>
+                                        )}
+                                        {item.type === 'income' && !item.paid && (
+                                            <span className="text-[8px] font-black px-2 py-0.5 rounded-full bg-amber-50 text-amber-500 border border-amber-100 uppercase">Pendiente</span>
                                         )}
                                     </div>
                                     <p className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter leading-tight">{formatCurrency(item.amount)}</p>
                                     <div className="flex gap-2 mt-2 flex-wrap">
                                         {item.type === 'recurring' && (
                                             <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${isOverdue ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-amber-50 text-amber-500 border-amber-100'}`}>
-                                                {isOverdue ? "VENCIDO" : `Día ${item.dueDay || '---'}`}
+                                                {isOverdue ? "VENCIDO" : `Vence Día ${item.dueDay || '---'}`}
                                             </span>
                                         )}
                                         {item.type === 'daily' && <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{itemDateObj.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })}</span>}
+                                        {item.type === 'income' && item.paid && <span className="text-[9px] font-black text-emerald-500 uppercase bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">Cobrado</span>}
                                     </div>
                                 </div>
                             )}
                             {item.paid && item.paymentType === 'partial' && <p className="text-[9px] font-black text-amber-500 uppercase mt-2 italic flex items-center gap-1 leading-none"><span className="w-1 h-1 bg-amber-500 rounded-full animate-pulse"></span> P. Parcial: {formatCurrency(item.paidAmount)}</p>}
                         </div>
                         <div className="flex gap-1.5 shrink-0">
-                            {item.type !== 'income' && (
-                                <div className="flex gap-1">
-                                    {!item.paid ? (
-                                        <>
-                                            <button onClick={(e) => { e.stopPropagation(); onToggle(item); }} className={`p-3 rounded-2xl border transition-all shadow-sm ${isOverdue ? 'bg-rose-50 text-rose-500 border-rose-200 hover:bg-rose-500 hover:text-white' : 'border-slate-100 text-slate-400 hover:bg-emerald-50'}`}><Icons.Check /></button>
-                                            {isCC && <button onClick={(e) => { e.stopPropagation(); setShowPartial(!showPartial); }} className="p-3 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs hover:bg-amber-50 shadow-sm">P</button>}
-                                        </>
-                                    ) : <button onClick={(e) => { e.stopPropagation(); onToggle(item); }} className="p-3 rounded-2xl bg-emerald-500 text-white shadow-lg scale-105 transition-all"><Icons.Check /></button>}
-                                </div>
-                            )}
+                            {/* Checkbox para cobrar ingresos o pagar gastos */}
+                            <div className="flex gap-1">
+                                {!item.paid ? (
+                                    <>
+                                        <button onClick={(e) => { e.stopPropagation(); onToggle(item); }} className={`p-3 rounded-2xl border transition-all shadow-sm ${isOverdue ? 'bg-rose-50 text-rose-500 border-rose-200 hover:bg-rose-500 hover:text-white' : 'border-slate-100 text-slate-400 hover:text-emerald-500'}`}>
+                                            {item.type === 'income' ? <Icons.Check /> : <Icons.Check />}
+                                        </button>
+                                        {isCC && item.type === 'recurring' && <button onClick={(e) => { e.stopPropagation(); setShowPartial(!showPartial); }} className="p-3 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs hover:bg-amber-50 shadow-sm">P</button>}
+                                    </>
+                                ) : <button onClick={(e) => { e.stopPropagation(); onToggle(item); }} className="p-3 rounded-2xl bg-emerald-500 text-white shadow-lg scale-105 transition-all"><Icons.Check /></button>}
+                            </div>
                             <button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} className="p-3 rounded-2xl border border-slate-100 text-slate-300 hover:text-rose-500 transition-all shadow-sm"><Icons.Trash /></button>
                         </div>
                     </div>
@@ -633,7 +651,6 @@
             const trendRef = useRef(null);
             const chartInstance = useRef(null);
             const trendInstance = useRef(null);
-            
             const [selectedRecurringName, setSelectedRecurringName] = useState("");
 
             const recurringNames = useMemo(() => {
@@ -642,9 +659,7 @@
             }, [items]);
 
             useEffect(() => {
-                if (recurringNames.length > 0 && !selectedRecurringName) {
-                    setSelectedRecurringName(recurringNames[0]);
-                }
+                if (recurringNames.length > 0 && !selectedRecurringName) setSelectedRecurringName(recurringNames[0]);
             }, [recurringNames]);
 
             const byCategory = useMemo(() => {
@@ -659,18 +674,8 @@
 
             const fullYearData = useMemo(() => {
                 const year = navDate.getUTCFullYear();
-                const result = [];
-                const monthLabels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-                
-                for (let i = 0; i < 12; i++) {
-                    result.push({
-                        label: monthLabels[i],
-                        amount: 0
-                    });
-                }
-
+                const result = Array.from({length: 12}, (_, i) => ({ label: ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"][i], amount: 0 }));
                 if (!selectedRecurringName) return result;
-
                 items.forEach(item => {
                     if (item.type === 'recurring' && item.name === selectedRecurringName && item.date) {
                         const d = new Date(item.date);
@@ -685,70 +690,33 @@
 
             useEffect(() => {
                 if (typeof Chart === 'undefined') return;
-                
                 if (chartRef.current) {
                     if (chartInstance.current) chartInstance.current.destroy();
-                    const ctx = chartRef.current.getContext('2d');
-                    chartInstance.current = new Chart(ctx, {
+                    chartInstance.current = new Chart(chartRef.current.getContext('2d'), {
                         type: 'doughnut',
-                        data: {
-                            labels: byCategory.map(c => c[0]),
-                            datasets: [{ data: byCategory.map(c => c[1]), backgroundColor: CHART_COLORS, borderWidth: 0 }]
-                        },
+                        data: { labels: byCategory.map(c => c[0]), datasets: [{ data: byCategory.map(c => c[1]), backgroundColor: CHART_COLORS, borderWidth: 0 }] },
                         options: { cutout: isSmall ? '85%' : '75%', plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: false }
                     });
                 }
-
                 if (trendRef.current && !isSmall) {
                     if (trendInstance.current) trendInstance.current.destroy();
-                    const ctxTrend = trendRef.current.getContext('2d');
-                    trendInstance.current = new Chart(ctxTrend, {
+                    trendInstance.current = new Chart(trendRef.current.getContext('2d'), {
                         type: 'bar',
-                        data: {
-                            labels: fullYearData.map(d => d.label),
-                            datasets: [{
-                                label: 'Monto Mensual',
-                                data: fullYearData.map(d => d.amount),
-                                backgroundColor: '#6366f1',
-                                borderRadius: 8,
-                                hoverBackgroundColor: '#4338ca'
-                            }]
-                        },
-                        options: {
-                            plugins: { 
-                                legend: { display: false },
-                                tooltip: {
-                                    callbacks: {
-                                        label: (context) => formatCurrency(context.raw)
-                                    }
-                                }
-                            },
-                            scales: { 
-                                y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 } } },
-                                x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' } } }
-                            },
-                            responsive: true,
-                            maintainAspectRatio: false
-                        }
+                        data: { labels: fullYearData.map(d => d.label), datasets: [{ label: 'Monto', data: fullYearData.map(d => d.amount), backgroundColor: '#6366f1', borderRadius: 8 }] },
+                        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }, responsive: true, maintainAspectRatio: false }
                     });
                 }
-
-                return () => { 
-                    if (chartInstance.current) chartInstance.current.destroy(); 
-                    if (trendInstance.current) trendInstance.current.destroy(); 
-                };
+                return () => { if (chartInstance.current) chartInstance.current.destroy(); if (trendInstance.current) trendInstance.current.destroy(); };
             }, [byCategory, fullYearData, isSmall]);
 
             if (isSmall) {
                 return (
                     <div className="flex items-center gap-8 bg-slate-900/5 p-6 rounded-[2.5rem] border border-slate-100">
-                        <div className="relative w-32 h-32 shrink-0">
-                            <canvas ref={chartRef}></canvas>
-                        </div>
+                        <div className="relative w-32 h-32 shrink-0"><canvas ref={chartRef}></canvas></div>
                         <div className="flex-1 space-y-2 max-h-32 overflow-y-auto no-scrollbar">
                             {byCategory.slice(0, 4).map(([cat, amount], idx) => (
                                 <div key={cat} className="flex justify-between items-center text-[10px] font-black uppercase">
-                                    <span style={{ color: CHART_COLORS[idx % CHART_COLORS.length] }} className="font-black truncate mr-2">{cat}</span>
+                                    <span style={{ color: CHART_COLORS[idx % CHART_COLORS.length] }} className="truncate mr-2">{cat}</span>
                                     <span className="text-slate-900 whitespace-nowrap">{formatCurrency(amount)}</span>
                                 </div>
                             ))}
@@ -771,9 +739,7 @@
                             </div>
                         </div>
                         <div className="w-full space-y-4">
-                            {byCategory.length === 0 ? (
-                                <p className="text-sm text-slate-400 italic text-center italic">Sin gastos registrados.</p>
-                            ) : byCategory.map(([cat, amount], idx) => (
+                            {byCategory.length === 0 ? <p className="text-sm text-slate-400 italic text-center italic">Sin gastos registrados.</p> : byCategory.map(([cat, amount], idx) => (
                                 <div key={cat} className="space-y-2">
                                     <div className="flex justify-between items-center text-[11px] font-black uppercase">
                                         <span style={{ color: CHART_COLORS[idx % CHART_COLORS.length] }}>{cat}</span>
@@ -786,31 +752,15 @@
                             ))}
                         </div>
                     </div>
-
                     <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                            <div>
-                                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 text-center md:text-left">Evolución Anual</h3>
-                                <h4 className="text-xl font-black text-slate-900 tracking-tight text-center md:text-left">Historial Gastos Fijos</h4>
-                            </div>
-                            <select 
-                                value={selectedRecurringName} 
-                                onChange={e => setSelectedRecurringName(e.target.value)}
-                                className="w-full md:w-auto p-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-indigo-200 transition-all cursor-pointer"
-                            >
-                                {recurringNames.length === 0 ? <option>Sin gastos fijos</option> : recurringNames.map(name => (
-                                    <option key={name} value={name}>{name}</option>
-                                ))}
+                            <div><h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 text-center md:text-left">Evolución Anual</h3><h4 className="text-xl font-black text-slate-900 tracking-tight text-center md:text-left">Historial Gastos Fijos</h4></div>
+                            <select value={selectedRecurringName} onChange={e => setSelectedRecurringName(e.target.value)} className="w-full md:w-auto p-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-indigo-200 transition-all cursor-pointer">
+                                {recurringNames.length === 0 ? <option>Sin gastos fijos</option> : recurringNames.map(name => <option key={name} value={name}>{name}</option>)}
                             </select>
                         </div>
-                        
-                        <div className="relative h-72 w-full">
-                            <canvas ref={trendRef}></canvas>
-                        </div>
-                        
-                        <div className="mt-6 flex justify-center">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Año: {navDate.getUTCFullYear()}</p>
-                        </div>
+                        <div className="relative h-72 w-full"><canvas ref={trendRef}></canvas></div>
+                        <div className="mt-6 flex justify-center"><p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Año: {navDate.getUTCFullYear()}</p></div>
                     </div>
                 </div>
             );
