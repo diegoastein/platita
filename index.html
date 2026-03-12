@@ -1,547 +1,483 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  onAuthStateChanged, 
-  signInWithCustomToken, 
-  signInAnonymously, 
-  signOut,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
-  setPersistence,
-  browserLocalPersistence
-} from 'firebase/auth';
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  serverTimestamp 
-} from 'firebase/firestore';
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Platita - Mi Control de Finanzas</title>
+    
+    <!-- Librerías de Estilo y Gráficos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- React y Babel (para ejecutar JSX en el navegador) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Firebase SDKs (Compat Mode para máxima compatibilidad) -->
+    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
 
-// --- CONFIGURACIÓN DE FIREBASE ---
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-  apiKey: "AIzaSyB_iAkA30kQKiavpJnB0zTpRXUr7aCzA7k",
-  authDomain: "platita-3fcc5.firebaseapp.com",
-  projectId: "platita-3fcc5",
-  storageBucket: "platita-3fcc5.firebasestorage.app",
-  messagingSenderId: "93396692454",
-  appId: "1:93396692454:web:acc81d633c3dd3ae27fa27"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'mi-app-finanzas-v1';
-
-const CATEGORIES_RECURRING = ["Hogar", "Servicios", "Impuestos", "Salud", "Educación", "Tarjetas", "General"];
-const CATEGORIES_DAILY = ["Comida", "Transporte", "Ocio", "Super", "Shopping", "General"];
-
-// --- COMPONENTES DE ICONOS (SVG Inline) ---
-const Icons = {
-  Wallet: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>,
-  Calendar: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
-  Shopping: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>,
-  Trash: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
-  Plus: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
-  Check: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>,
-  Logout: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>,
-  ChevronLeft: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>,
-  ChevronRight: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>,
-  Analysis: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2v2m3 10v-3a2 2 0 012-2h2a2 2 0 012 2v3m2 0h-5m-9 0H3m9 0a9 9 0 0118 0v1H3v-1z" /></svg>,
-  Eye: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>,
-  EyeOff: () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>
-};
-
-// --- UTILIDADES ---
-const formatCurrency = (val, mask = false) => {
-  if (mask) return "$ ••••••";
-  return new Intl.NumberFormat('es-AR', { 
-    style: 'currency', 
-    currency: 'ARS',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(val || 0);
-};
-
-const parseLocaleNumber = (stringNumber) => {
-  if (!stringNumber) return 0;
-  const clean = stringNumber.toString().replace(/\./g, '').replace(',', '.');
-  return parseFloat(clean) || 0;
-};
-
-// --- COMPONENTE PRINCIPAL ---
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [authError, setAuthError] = useState(null);
-  const [view, setView] = useState('dashboard');
-  const [items, setItems] = useState([]);
-  const [navDate, setNavDate] = useState(new Date());
-  const [hideBalance, setHideBalance] = useState(false);
-
-  // 1. Inicialización de Autenticación (REGLA 3)
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        // Primero intentamos establecer persistencia si el entorno lo permite
-        if (window.location.protocol.startsWith('http')) {
-          try {
-            await setPersistence(auth, browserLocalPersistence);
-          } catch (pe) { console.warn("Persistencia no soportada"); }
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        
+        body { 
+            background-color: #f8fafc; 
+            font-family: 'Inter', sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+            color: #1e293b;
         }
 
-        // REGLA 3: Llamar a auth primero y esperar
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          // Siempre intentamos anónimo primero para asegurar que Firestore funcione
-          // Si hay una sesión de Google previa, onAuthStateChanged la recuperará.
-          await signInAnonymously(auth);
+        /* Corrección crítica: Evita que los iconos se vean gigantes antes de cargar Tailwind */
+        svg {
+            width: 1.5rem;
+            height: 1.5rem;
+            display: inline-block;
         }
-      } catch (e) {
-        console.error("Auth Init Error:", e);
-      } finally {
-        setLoading(false);
-      }
-    };
+        
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
 
-    initAuth();
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-    });
-    return () => unsubscribe();
-  }, []);
+        .card-shadow { 
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02); 
+        }
 
-  // 2. Suscripción a Datos (REGLA 1 y 2)
-  useEffect(() => {
-    if (!user) return;
-    
-    // REGLA 1: Path estricto
-    const colRef = collection(db, 'artifacts', appId, 'users', user.uid, 'transactions');
-    
-    // REGLA 2: Sin filtros complejos en la query
-    const unsubscribe = onSnapshot(colRef, 
-      (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setItems(data);
-      },
-      (err) => {
-        console.error("Firestore Error:", err);
-      }
-    );
-    return () => unsubscribe();
-  }, [user]);
+        .animate-fade-in { 
+            animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
 
-  // Cálculos de estado derivados
-  const selectedMonth = navDate.getMonth();
-  const selectedYear = navDate.getFullYear();
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(10px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
 
-  const currentMonthItems = useMemo(() => {
-    return items.filter(item => {
-      const d = item.date ? new Date(item.date) : new Date();
-      return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
-    });
-  }, [items, selectedMonth, selectedYear]);
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        input::-webkit-inner-spin-button, 
+        input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
 
-  const stats = useMemo(() => {
-    const income = currentMonthItems.filter(i => i.type === 'income').reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0);
-    const recPaid = currentMonthItems.filter(i => i.type === 'recurring' && i.paid).reduce((acc, c) => {
-      const actualPaid = c.paymentType === 'partial' ? (parseFloat(c.paidAmount) || 0) : (parseFloat(c.amount) || 0);
-      return acc + actualPaid;
-    }, 0);
-    const recPending = currentMonthItems.filter(i => i.type === 'recurring' && !i.paid).reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0);
-    const daily = currentMonthItems.filter(i => i.type === 'daily').reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0);
-    const totalSpent = recPaid + daily;
-    const spendRatio = income > 0 ? (totalSpent / income) * 100 : 0;
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
 
-    const upcomingExpenses = currentMonthItems
-      .filter(i => i.type === 'recurring' && !i.paid)
-      .sort((a,b) => (a.dueDay || 99) - (b.dueDay || 99))
-      .slice(0, 3);
+        // --- CONFIGURACIÓN DE FIREBASE ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyB_iAkA30kQKiavpJnB0zTpRXUr7aCzA7k",
+            authDomain: "platita-3fcc5.firebaseapp.com",
+            projectId: "platita-3fcc5",
+            storageBucket: "platita-3fcc5.firebasestorage.app",
+            messagingSenderId: "93396692454",
+            appId: "1:93396692454:web:acc81d633c3dd3ae27fa27"
+        };
 
-    return { income, recPaid, recPending, daily, balance: income - recPaid - daily, totalSpent, spendRatio, upcomingExpenses };
-  }, [currentMonthItems]);
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'mi-app-finanzas-v1';
 
-  const handleLogin = async (mode) => {
-    const provider = new GoogleAuthProvider();
-    setAuthError(null);
-    setLoading(true);
+        const CATEGORIES_RECURRING = ["Hogar", "Servicios", "Impuestos", "Salud", "Educación", "Tarjetas", "General"];
+        const CATEGORIES_DAILY = ["Comida", "Transporte", "Ocio", "Super", "Shopping", "General"];
 
-    if (!window.location.protocol.startsWith('http')) {
-      setAuthError("El inicio de sesión con Google requiere un entorno HTTPS. Usa el modo Invitado en esta previsualización.");
-      setLoading(false);
-      return;
-    }
+        // --- ICONOS ---
+        const Icons = {
+            Wallet: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>,
+            Calendar: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
+            Shopping: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>,
+            Trash: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+            Plus: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
+            Check: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>,
+            Logout: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>,
+            ChevronLeft: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>,
+            ChevronRight: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>,
+            Analysis: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2v2m3 10v-3a2 2 0 012-2h2a2 2 0 012 2v3m2 0h-5m-9 0H3m9 0a9 9 0 0118 0v1H3v-1z" /></svg>,
+            Eye: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>,
+            EyeOff: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>
+        };
 
-    try {
-      if (mode === 'redirect') {
-        await signInWithRedirect(auth, provider);
-      } else {
-        await signInWithPopup(auth, provider);
-      }
-    } catch (e) {
-      console.error("Login error:", e);
-      setAuthError(e.message.includes("operation-not-supported") 
-        ? "Tu navegador bloquea el acceso necesario para Google. Prueba 'Usar Redirección' o usa el modo Invitado." 
-        : e.message);
-      setLoading(false);
-    }
-  };
+        const formatCurrency = (val, mask = false) => {
+            if (mask) return "$ ••••••";
+            return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(val || 0);
+        };
 
-  const addItem = async (data) => {
-    if (!user) return;
-    await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'transactions'), {
-      ...data,
-      date: data.date || navDate.toISOString(),
-      createdAt: serverTimestamp()
-    });
-  };
+        const parseLocaleNumber = (str) => {
+            if (!str) return 0;
+            const clean = str.toString().replace(/\./g, '').replace(',', '.');
+            return parseFloat(clean) || 0;
+        };
 
-  const deleteItem = async (id) => {
-    if (!user) return;
-    await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'transactions', id));
-  };
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [view, setView] = useState('dashboard');
+            const [items, setItems] = useState([]);
+            const [navDate, setNavDate] = useState(new Date());
+            const [hideBalance, setHideBalance] = useState(false);
+            const [authError, setAuthError] = useState(null);
 
-  const updateItemField = async (id, field, value) => {
-    if (!user) return;
-    const finalVal = (field === 'amount' || field === 'dueDay' || field === 'paidAmount') ? parseLocaleNumber(value) : value;
-    await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'transactions', id), { [field]: finalVal });
-  };
+            // 1. Inicialización de Autenticación
+            useEffect(() => {
+                const initAuth = async () => {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await auth.signInWithCustomToken(__initial_auth_token);
+                        } else {
+                            // Siempre intentamos entrar de forma anónima para que Firestore funcione de inmediato
+                            await auth.signInAnonymously();
+                        }
+                    } catch (e) { console.error("Error Auth:", e); }
+                    setLoading(false);
+                };
+                initAuth();
+                const unsubscribe = auth.onAuthStateChanged(setUser);
+                return () => unsubscribe();
+            }, []);
 
-  const toggleRecurring = async (item, pType = 'total', pAmount = 0) => {
-    if (!user) return;
-    const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'transactions', item.id);
-    if (item.paid) {
-      await updateDoc(docRef, { paid: false, paymentType: null, paidAmount: 0 });
-    } else {
-      await updateDoc(docRef, { 
-        paid: true, 
-        paymentType: pType, 
-        paidAmount: pType === 'partial' ? pAmount : item.amount 
-      });
-    }
-  };
+            // 2. Suscripción a Datos (Reglas de Seguridad)
+            useEffect(() => {
+                if (!user) return;
+                const path = `artifacts/${appId}/users/${user.uid}/transactions`;
+                const unsubscribe = db.collection(path).onSnapshot(snap => {
+                    setItems(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                }, err => console.error("Error Firestore:", err));
+                return () => unsubscribe();
+            }, [user]);
 
-  if (loading) return <div className="flex h-screen items-center justify-center bg-white"><div className="w-10 h-10 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div></div>;
+            const selectedMonth = navDate.getMonth();
+            const selectedYear = navDate.getFullYear();
 
-  // Si no hay usuario en absoluto (no debería pasar por el fallback anónimo)
-  if (!user) return (
-    <div className="flex flex-col h-screen items-center justify-center bg-white p-8 text-center">
-      <div className="bg-slate-900 text-white p-5 rounded-[2rem] mb-6 shadow-2xl"><Icons.Wallet /></div>
-      <h1 className="text-3xl font-black text-slate-900 mb-2">Platita</h1>
-      <p className="text-slate-500 mb-8 italic">Cargando sesión segura...</p>
-    </div>
-  );
+            const currentMonthItems = useMemo(() => {
+                return items.filter(item => {
+                    const d = item.date ? new Date(item.date) : new Date();
+                    return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+                });
+            }, [items, selectedMonth, selectedYear]);
 
-  return (
-    <div className="max-w-md mx-auto min-h-screen bg-slate-50 pb-32 animate-fade-in relative font-sans">
-      <header className="bg-white p-4 border-b border-slate-100 shadow-sm rounded-b-[2.5rem]">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-black text-slate-900 flex items-center gap-2">
-            <span className="bg-slate-900 text-white px-2 py-0.5 rounded-lg">P</span> Platita
-          </h1>
-          <div className="flex items-center gap-4">
-            {user.isAnonymous ? (
-              <button onClick={() => setView('login_screen')} className="text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">Vincular Google</button>
-            ) : (
-              <button onClick={() => signOut(auth)} className="text-slate-400 hover:text-rose-600 transition-colors"><Icons.Logout /></button>
-            )}
-          </div>
-        </div>
+            const stats = useMemo(() => {
+                const income = currentMonthItems.filter(i => i.type === 'income').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
+                const recPaid = currentMonthItems.filter(i => i.type === 'recurring' && i.paid).reduce((a, c) => a + (c.paymentType === 'partial' ? (parseFloat(c.paidAmount) || 0) : (parseFloat(c.amount) || 0)), 0);
+                const recPending = currentMonthItems.filter(i => i.type === 'recurring' && !i.paid).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
+                const daily = currentMonthItems.filter(i => i.type === 'daily').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
+                const totalSpent = recPaid + daily;
+                const upcoming = currentMonthItems.filter(i => i.type === 'recurring' && !i.paid).sort((a,b) => (a.dueDay || 99) - (b.dueDay || 99)).slice(0, 3);
+                return { income, recPaid, recPending, daily, balance: income - totalSpent, totalSpent, upcoming };
+            }, [currentMonthItems]);
 
-        {view === 'login_screen' ? (
-          <div className="py-8 text-center animate-fade-in">
-             <h2 className="text-lg font-black text-slate-900 mb-2">Sincronizar Datos</h2>
-             <p className="text-xs text-slate-500 mb-6">Inicia sesión con Google para acceder a tus datos desde cualquier dispositivo.</p>
-             {authError && <p className="text-rose-500 text-[10px] font-bold mb-4 bg-rose-50 p-3 rounded-xl border border-rose-100">{authError}</p>}
-             <div className="flex flex-col gap-3">
-               <button onClick={() => handleLogin('popup')} className="bg-slate-900 text-white py-4 rounded-2xl font-black shadow-lg">Entrar con Google (Popup)</button>
-               <button onClick={() => handleLogin('redirect')} className="border-2 border-slate-100 text-slate-600 py-3 rounded-2xl font-black text-xs">Usar Redirección (Más estable)</button>
-               <button onClick={() => setView('dashboard')} className="text-slate-400 text-[10px] uppercase font-bold tracking-widest mt-2">Seguir como Invitado</button>
-             </div>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center justify-between bg-slate-100 p-1 rounded-full mb-4">
-              <button onClick={() => setNavDate(new Date(navDate.setMonth(navDate.getMonth()-1)))} className="text-slate-500 p-1.5"><Icons.ChevronLeft /></button>
-              <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{navDate.toLocaleString('es-ES', { month: 'short', year: 'numeric' })}</span>
-              <button onClick={() => setNavDate(new Date(navDate.setMonth(navDate.getMonth()+1)))} className="text-slate-500 p-1.5"><Icons.ChevronRight /></button>
+            const handleGoogleLogin = async (mode) => {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                setLoading(true);
+                try {
+                    if (mode === 'redirect') await auth.signInWithRedirect(provider);
+                    else await auth.signInWithPopup(provider);
+                } catch (e) {
+                    setAuthError(e.message);
+                    setLoading(false);
+                }
+            };
+
+            const addItem = async (data) => {
+                if (!user) return;
+                const path = `artifacts/${appId}/users/${user.uid}/transactions`;
+                await db.collection(path).add({
+                    ...data,
+                    date: data.date || navDate.toISOString(),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            };
+
+            const toggleItem = async (item, pType = 'total', pAmount = 0) => {
+                if (!user) return;
+                const path = `artifacts/${appId}/users/${user.uid}/transactions`;
+                const docRef = db.collection(path).doc(item.id);
+                if (item.paid) {
+                    await docRef.update({ paid: false, paymentType: null, paidAmount: 0 });
+                } else {
+                    await docRef.update({ paid: true, paymentType: pType, paidAmount: pType === 'partial' ? pAmount : item.amount });
+                }
+            };
+
+            const deleteItem = async (id) => {
+                if (!user) return;
+                const path = `artifacts/${appId}/users/${user.uid}/transactions`;
+                await db.collection(path).doc(id).delete();
+            };
+
+            if (loading) return (
+                <div className="flex h-screen items-center justify-center bg-white">
+                    <div className="w-12 h-12 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+            );
+
+            return (
+                <div className="max-w-md mx-auto min-h-screen pb-32 animate-fade-in relative bg-slate-50">
+                    <header className="bg-white p-5 border-b border-slate-100 rounded-b-[2.5rem] shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+                                <span className="bg-slate-900 text-white px-2 py-1 rounded-xl">P</span> Platita
+                            </h1>
+                            <div className="flex items-center gap-3">
+                                {user.isAnonymous ? (
+                                    <button onClick={() => setView('login')} className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 uppercase">Sincronizar</button>
+                                ) : (
+                                    <button onClick={() => auth.signOut()} className="text-slate-300 hover:text-rose-500"><Icons.Logout /></button>
+                                )}
+                            </div>
+                        </div>
+
+                        {view === 'login' ? (
+                            <div className="py-6 text-center animate-fade-in">
+                                <h2 className="text-lg font-black text-slate-900 mb-2">Vincular con Google</h2>
+                                <p className="text-xs text-slate-500 mb-6">Guarda tus finanzas en la nube para no perderlas jamás.</p>
+                                <div className="flex flex-col gap-3">
+                                    <button onClick={() => handleGoogleLogin('popup')} className="bg-slate-900 text-white py-4 rounded-2xl font-black shadow-lg">Entrar con Google</button>
+                                    <button onClick={() => handleGoogleLogin('redirect')} className="border-2 border-slate-100 text-slate-600 py-3 rounded-2xl font-black text-xs">Usar Redirección (Móvil)</button>
+                                    <button onClick={() => setView('dashboard')} className="text-slate-400 text-[10px] font-bold mt-2 uppercase tracking-widest">Ahora no</button>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex items-center justify-between bg-slate-100 p-1 rounded-full mb-5">
+                                    <button onClick={() => setNavDate(new Date(navDate.setMonth(navDate.getMonth()-1)))} className="p-2 text-slate-500"><Icons.ChevronLeft /></button>
+                                    <span className="text-[11px] font-black text-slate-700 uppercase tracking-widest">{navDate.toLocaleString('es-ES', { month: 'short', year: 'numeric' })}</span>
+                                    <button onClick={() => setNavDate(new Date(navDate.setMonth(navDate.getMonth()+1)))} className="p-2 text-slate-500"><Icons.ChevronRight /></button>
+                                </div>
+
+                                <div className="bg-slate-900 rounded-[2.5rem] p-6 text-white shadow-xl relative overflow-hidden flex flex-col items-center">
+                                    <button onClick={() => setHideBalance(!hideBalance)} className="absolute top-4 right-6 text-slate-500 p-2">{hideBalance ? <Icons.Eye /> : <Icons.EyeOff />}</button>
+                                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Saldo Disponible</p>
+                                    <h2 className="text-4xl font-black mb-6 tracking-tight">{formatCurrency(stats.balance, hideBalance)}</h2>
+                                    <div className="grid grid-cols-2 gap-8 border-t border-white/10 pt-4 w-full text-center">
+                                        <div><p className="text-slate-500 text-[9px] uppercase font-black">Cobros</p><p className="text-emerald-400 font-black text-sm">{formatCurrency(stats.income, hideBalance)}</p></div>
+                                        <div><p className="text-slate-500 text-[9px] uppercase font-black">Gastos</p><p className="text-rose-400 font-black text-sm">{formatCurrency(stats.totalSpent, hideBalance)}</p></div>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </header>
+
+                    {view !== 'login' && (
+                        <main className="p-5 space-y-6">
+                            {view === 'dashboard' && <Summary stats={stats} />}
+                            {view === 'analysis' && <AnalysisView currentMonthItems={currentMonthItems} stats={stats} />}
+                            {view === 'income' && <ListView title="Ingresos" type="income" items={currentMonthItems.filter(i => i.type === 'income')} onAdd={addItem} onDelete={deleteItem} accent="emerald" />}
+                            {view === 'recurring' && <ListView title="Gastos Fijos" type="recurring" items={currentMonthItems.filter(i => i.type === 'recurring')} onAdd={addItem} onDelete={deleteItem} onToggle={toggleItem} accent="amber" showCheck showDueDay showCategories />}
+                            {view === 'daily' && <ListView title="Gastos Diarios" type="daily" items={currentMonthItems.filter(i => i.type === 'daily')} onAdd={addItem} onDelete={deleteItem} accent="rose" showCategories showDatePicker showMonthlyTotal stats={stats} />}
+                        </main>
+                    )}
+
+                    <nav className="fixed bottom-0 left-0 right-0 glass-nav z-50">
+                        <div className="max-w-md mx-auto flex justify-around p-4 safe-area-bottom">
+                            <NavTab active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<Icons.Wallet />} label="Inicio" />
+                            <NavTab active={view === 'income'} onClick={() => setView('income')} icon={<Icons.Plus />} label="Cobros" />
+                            <NavTab active={view === 'recurring'} onClick={() => setView('recurring')} icon={<Icons.Calendar />} label="Fijos" />
+                            <NavTab active={view === 'daily'} onClick={() => setView('daily')} icon={<Icons.Shopping />} label="Diarios" />
+                            <NavTab active={view === 'analysis'} onClick={() => setView('analysis')} icon={<Icons.Analysis />} label="Análisis" />
+                        </div>
+                    </nav>
+                </div>
+            );
+        };
+
+        const NavTab = ({ active, onClick, icon, label }) => (
+            <button onClick={onClick} className={`p-2.5 rounded-2xl transition-all flex flex-col items-center gap-1 ${active ? 'bg-slate-900 text-white shadow-lg scale-105' : 'text-slate-400'}`}>
+                {icon} <span className="text-[8px] font-black uppercase tracking-widest">{label}</span>
+            </button>
+        );
+
+        const Summary = ({ stats }) => (
+            <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col gap-4 animate-fade-in">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0"><Icons.Calendar /></div>
+                    <div className="flex-1">
+                        <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Pendiente Próximo</p>
+                        <p className="text-2xl font-black text-slate-800 tracking-tight">{formatCurrency(stats.recPending)}</p>
+                    </div>
+                </div>
+                {stats.upcoming.length > 0 && (
+                    <div className="bg-amber-50/50 rounded-3xl p-4 border border-dashed border-amber-200">
+                        <ul className="space-y-2">
+                            {stats.upcoming.map(item => (
+                                <li key={item.id} className="flex justify-between items-center text-[10px] font-bold text-slate-600">
+                                    <span className="uppercase truncate max-w-[150px]">{item.name}</span>
+                                    <span className="bg-amber-100 px-2 py-0.5 rounded text-amber-700 font-black">Día {item.dueDay}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
             </div>
+        );
 
-            <div className="bg-slate-900 rounded-[2rem] p-5 text-white shadow-xl relative overflow-hidden flex flex-col items-center">
-              <button onClick={() => setHideBalance(!hideBalance)} className="absolute top-4 right-6 text-slate-400 hover:text-white p-2">
-                {hideBalance ? <Icons.Eye /> : <Icons.EyeOff />}
-              </button>
-              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Saldo Disponible</p>
-              <h2 className="text-3xl font-black mb-4 tracking-tight">{formatCurrency(stats.balance, hideBalance)}</h2>
-              <div className="w-full bg-white/10 h-1.5 rounded-full mb-4 overflow-hidden">
-                <div className={`h-full transition-all duration-1000 ${stats.spendRatio > 90 ? 'bg-rose-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(stats.spendRatio, 100)}%` }}></div>
-              </div>
-              <div className="grid grid-cols-2 gap-8 border-t border-white/10 pt-4 w-full text-center">
-                <div><p className="text-slate-500 text-[9px] uppercase font-black">Cobros</p><p className="text-emerald-400 font-black text-sm">{formatCurrency(stats.income, hideBalance)}</p></div>
-                <div><p className="text-slate-500 text-[9px] uppercase font-black">Salidas</p><p className="text-rose-400 font-black text-sm">{formatCurrency(stats.totalSpent, hideBalance)}</p></div>
-              </div>
-            </div>
-          </>
-        )}
-      </header>
+        const ListView = ({ title, type, items, onAdd, onDelete, onToggle, accent, showCheck, showDueDay, showCategories, showDatePicker, showMonthlyTotal, stats }) => {
+            const [newName, setNewName] = useState('');
+            const [newAmount, setNewAmount] = useState('');
+            const [newDueDay, setNewDueDay] = useState('');
+            const [newCategory, setNewCategory] = useState('General');
+            const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
 
-      {view !== 'login_screen' && (
-        <main className="p-4 space-y-6">
-          {view === 'dashboard' && <Summary stats={stats} />}
-          {view === 'analysis' && <AnalysisView currentMonthItems={currentMonthItems} stats={stats} />}
-          {view === 'income' && <ListView title="Cobros e Ingresos" type="income" items={currentMonthItems.filter(i => i.type === 'income')} onAdd={addItem} onDelete={deleteItem} onUpdate={updateItemField} accent="emerald" />}
-          {view === 'recurring' && <ListView title="Gastos Fijos" type="recurring" items={currentMonthItems.filter(i => i.type === 'recurring')} onAdd={addItem} onDelete={deleteItem} onUpdate={updateItemField} onToggle={toggleRecurring} accent="amber" showCheck showDueDay showCategories />}
-          {view === 'daily' && <ListView title="Gastos Diarios" type="daily" items={currentMonthItems.filter(i => i.type === 'daily')} onAdd={addItem} onDelete={deleteItem} onUpdate={updateItemField} accent="rose" showCategories showDatePicker showMonthlyTotal stats={stats} />}
-        </main>
-      )}
+            const handleAdd = (e) => {
+                e.preventDefault();
+                if (!newName || !newAmount) return;
+                onAdd({ name: newName, amount: parseLocaleNumber(newAmount), dueDay: showDueDay ? parseInt(newDueDay) || null : null, category: newCategory, type, paid: type === 'income', date: showDatePicker ? new Date(newDate).toISOString() : null });
+                setNewName(''); setNewAmount(''); setNewDueDay('');
+            };
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-100 safe-area-bottom z-50">
-        <div className="flex justify-around p-3">
-          <NavTab active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<Icons.Wallet />} label="Inicio" />
-          <NavTab active={view === 'income'} onClick={() => setView('income')} icon={<Icons.Plus />} label="Cobros" />
-          <NavTab active={view === 'recurring'} onClick={() => setView('recurring')} icon={<Icons.Calendar />} label="Fijos" />
-          <NavTab active={view === 'daily'} onClick={() => setView('daily')} icon={<Icons.Shopping />} label="Diarios" />
-          <NavTab active={view === 'analysis'} onClick={() => setView('analysis')} icon={<Icons.Analysis />} label="Análisis" />
-        </div>
-      </nav>
-    </div>
-  );
-}
+            const sorted = useMemo(() => {
+                if (type === 'recurring') return [...items].sort((a,b) => (a.dueDay || 99) - (b.dueDay || 99));
+                return [...items].sort((a,b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
+            }, [items, type]);
 
-// --- SUBCOMPONENTES ---
+            return (
+                <div className="space-y-4 animate-fade-in">
+                    {showMonthlyTotal && (
+                        <div className="bg-rose-50 border border-rose-100 p-5 rounded-[2.5rem] flex items-center gap-4 shadow-sm">
+                            <div className="w-12 h-12 bg-rose-500 text-white rounded-2xl flex items-center justify-center shadow-lg"><Icons.Shopping /></div>
+                            <div>
+                                <p className="text-rose-400 text-[10px] font-black uppercase tracking-widest">Gasto Diario Mes</p>
+                                <p className="text-3xl font-black text-rose-700 tracking-tight">{formatCurrency(stats.daily)}</p>
+                            </div>
+                        </div>
+                    )}
+                    <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-1">{title}</h2>
+                    <form onSubmit={handleAdd} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col gap-4">
+                        <input className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none font-medium" placeholder="Descripción" value={newName} onChange={e => setNewName(e.target.value)} />
+                        <div className="grid grid-cols-12 gap-3">
+                            <div className={`${showDueDay ? 'col-span-8' : 'col-span-10'} relative`}>
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                                <input type="text" className="w-full p-4 pl-8 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black outline-none" placeholder="0,00" value={newAmount} onChange={e => setNewAmount(e.target.value)} />
+                            </div>
+                            {showDueDay && <input type="number" className="col-span-2 w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-center outline-none" placeholder="Vto" value={newDueDay} onChange={e => setNewDueDay(e.target.value)} />}
+                            <button type="submit" className="col-span-2 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-transform"><Icons.Plus /></button>
+                        </div>
+                        {showCategories && (
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                                {(type === 'recurring' ? CATEGORIES_RECURRING : CATEGORIES_DAILY).map(cat => (
+                                    <button key={cat} type="button" onClick={() => setNewCategory(cat)} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${newCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>{cat}</button>
+                                ))}
+                            </div>
+                        )}
+                    </form>
+                    <div className="space-y-3">
+                        {sorted.map(item => <ItemCard key={item.id} item={item} accent={accent} onDel={() => onDelete(item.id)} onToggle={onToggle} showCheck={showCheck} showDueDay={showDueDay} />)}
+                    </div>
+                </div>
+            );
+        };
 
-const NavTab = ({ active, onClick, icon, label }) => (
-  <button onClick={onClick} className={`p-2 rounded-2xl transition-all flex flex-col items-center gap-1 ${active ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400'}`}>
-    {icon} <span className="text-[8px] font-black uppercase tracking-widest">{label}</span>
-  </button>
-);
+        const ItemCard = ({ item, accent, onDel, onToggle, showCheck, showDueDay }) => {
+            const [showPartial, setShowPartial] = useState(false);
+            const [partialVal, setPartialVal] = useState('');
+            const borders = { emerald: "border-emerald-500", rose: "border-rose-500", amber: "border-amber-500" };
+            const isCC = item.name?.toLowerCase().includes("visa") || item.name?.toLowerCase().includes("master") || item.category === "Tarjetas";
 
-const Summary = ({ stats }) => (
-  <div className="space-y-4 animate-fade-in">
-    <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-4">
-      <div className="flex items-center gap-4">
-        <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0"><Icons.Calendar /></div>
-        <div className="flex-1">
-          <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Vencimientos Próximos</p>
-          <p className="text-xl font-black text-slate-800">{formatCurrency(stats.recPending)}</p>
-        </div>
-      </div>
-      {stats.upcomingExpenses.length > 0 && (
-        <div className="bg-amber-50/50 rounded-2xl p-3 border border-dashed border-amber-200">
-          <ul className="space-y-2">
-            {stats.upcomingExpenses.map(item => (
-              <li key={item.id} className="flex justify-between items-center text-[10px] font-bold text-slate-600">
-                <span className="truncate mr-2 uppercase">{item.name}</span>
-                <span className="shrink-0 bg-amber-100 px-1.5 py-0.5 rounded text-amber-700">Día {item.dueDay}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  </div>
-);
+            return (
+                <div className={`bg-white p-5 rounded-[2rem] border-l-[10px] ${item.paid && item.type !== 'income' ? 'border-emerald-500 opacity-60' : borders[accent]} shadow-sm flex flex-col gap-3 transition-all`}>
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center flex-wrap gap-2 mb-1">
+                                <span className="text-[10px] font-black text-slate-500 uppercase truncate">{item.name}</span>
+                                <div className="flex gap-1">
+                                    <span className="bg-slate-50 text-[8px] font-black px-2 py-0.5 rounded border text-slate-400">{showDueDay ? `Día ${item.dueDay}` : new Date(item.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}</span>
+                                    <span className="bg-slate-50 text-[8px] font-black px-2 py-0.5 rounded-full text-slate-500 border uppercase">{item.category}</span>
+                                </div>
+                            </div>
+                            <p className="text-2xl font-black text-slate-900 tracking-tighter">{formatCurrency(item.amount)}</p>
+                            {item.paid && item.paymentType === 'partial' && <p className="text-[9px] font-black text-amber-500 uppercase mt-1">Abonado: {formatCurrency(item.paidAmount)}</p>}
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                            {showCheck && (
+                                <div className="flex gap-1">
+                                    {!item.paid ? (
+                                        <>
+                                            <button onClick={() => onToggle(item)} className="p-3 rounded-2xl border border-slate-100 text-slate-400 hover:text-emerald-500"><Icons.Check /></button>
+                                            {isCC && <button onClick={() => setShowPartial(!showPartial)} className="p-3 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs">P</button>}
+                                        </>
+                                    ) : <button onClick={() => onToggle(item)} className="p-3 rounded-2xl bg-emerald-500 text-white shadow-md"><Icons.Check /></button>}
+                                </div>
+                            )}
+                            <button onClick={onDel} className="p-3 rounded-2xl border border-slate-100 text-slate-300 hover:text-rose-500 transition-colors"><Icons.Trash /></button>
+                        </div>
+                    </div>
+                    {showPartial && !item.paid && (
+                        <div className="flex gap-2 items-end p-4 bg-amber-50 rounded-[1.5rem] animate-fade-in border border-amber-100">
+                            <input className="flex-1 p-3 bg-white border border-amber-200 rounded-xl text-xs font-black outline-none" placeholder="Monto parcial..." value={partialVal} onChange={e => setPartialVal(e.target.value)} />
+                            <button onClick={() => {onToggle(item, 'partial', parseLocaleNumber(partialVal)); setShowPartial(false);}} className="bg-amber-500 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase shadow-lg">Confirmar</button>
+                        </div>
+                    )}
+                </div>
+            );
+        };
 
-const ListView = ({ title, type, items, onAdd, onDelete, onUpdate, onToggle, accent, showCheck, showDueDay, showCategories, showDatePicker, showMonthlyTotal, stats }) => {
-  const [newName, setNewName] = useState('');
-  const [newAmount, setNewAmount] = useState('');
-  const [newDueDay, setNewDueDay] = useState('');
-  const [newCategory, setNewCategory] = useState('General');
-  const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
+        const AnalysisView = ({ currentMonthItems, stats }) => {
+            const chartRef = useRef(null);
+            const chartInstance = useRef(null);
+            const byCategory = useMemo(() => {
+                const cats = {};
+                currentMonthItems.forEach(i => {
+                    if (i.type === 'income') return;
+                    const val = i.paymentType === 'partial' ? (parseFloat(i.paidAmount) || 0) : (parseFloat(i.amount) || 0);
+                    cats[i.category || 'General'] = (cats[i.category || 'General'] || 0) + val;
+                });
+                return Object.entries(cats).sort((a,b) => b[1] - a[1]);
+            }, [currentMonthItems]);
 
-  const handleAdd = (e) => {
-    e.preventDefault();
-    if (!newName) return;
-    onAdd({ 
-      name: newName, 
-      amount: parseLocaleNumber(newAmount), 
-      dueDay: showDueDay ? parseInt(newDueDay) || null : null,
-      category: newCategory,
-      type, 
-      paid: type === 'income',
-      date: showDatePicker ? new Date(newDate).toISOString() : null
-    });
-    setNewName(''); setNewAmount(''); setNewDueDay('');
-  };
+            useEffect(() => {
+                if (typeof Chart === 'undefined' || !chartRef.current) return;
+                if (chartInstance.current) chartInstance.current.destroy();
+                const ctx = chartRef.current.getContext('2d');
+                chartInstance.current = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: byCategory.map(c => c[0]),
+                        datasets: [{ data: byCategory.map(c => c[1]), backgroundColor: ['#0f172a', '#334155', '#475569', '#64748b', '#94a3b8', '#cbd5e1'], borderWidth: 0 }]
+                    },
+                    options: { cutout: '80%', plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: false }
+                });
+                return () => { if (chartInstance.current) chartInstance.current.destroy(); };
+            }, [byCategory]);
 
-  const sortedItems = useMemo(() => {
-    if (type === 'recurring') return [...items].sort((a,b) => (a.dueDay || 99) - (b.dueDay || 99));
-    return [...items].sort((a,b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
-  }, [items, type]);
+            return (
+                <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 flex flex-col items-center animate-fade-in">
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8">Gastos por Categoría</h3>
+                    <div className="relative w-56 h-56 mb-8">
+                        <canvas ref={chartRef}></canvas>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                            <p className="text-[9px] font-black text-slate-400 uppercase">Total Mes</p>
+                            <p className="text-2xl font-black text-slate-900 tracking-tight">{formatCurrency(stats.totalSpent)}</p>
+                        </div>
+                    </div>
+                    <div className="w-full space-y-4">
+                        {byCategory.length === 0 ? (
+                            <p className="text-xs text-slate-400 italic text-center">Sin datos para graficar</p>
+                        ) : byCategory.map(([cat, amount]) => (
+                            <div key={cat} className="space-y-2">
+                                <div className="flex justify-between items-center text-[10px] font-black uppercase">
+                                    <span className="text-slate-500">{cat}</span>
+                                    <span className="text-slate-900">{formatCurrency(amount)}</span>
+                                </div>
+                                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                    <div className="h-full bg-slate-900 transition-all duration-700" style={{ width: `${(amount / (stats.totalSpent || 1)) * 100}%` }}></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
 
-  return (
-    <div className="space-y-4 animate-fade-in">
-      {showMonthlyTotal && (
-        <div className="bg-rose-50 border border-rose-100 p-4 rounded-[2rem] flex items-center gap-4 shadow-sm mb-2">
-          <div className="w-10 h-10 bg-rose-500 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><Icons.Shopping /></div>
-          <div>
-            <p className="text-rose-400 text-[10px] font-black uppercase tracking-widest">Gastos Diarios del Mes</p>
-            <p className="text-2xl font-black text-rose-700">{formatCurrency(stats.daily)}</p>
-          </div>
-        </div>
-      )}
-
-      <div className="flex justify-between items-center px-1">
-        <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{title}</h2>
-        <span className="text-[9px] font-black text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-100 uppercase">{items.length} reg.</span>
-      </div>
-
-      <form onSubmit={handleAdd} className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-4">
-        <div className="grid grid-cols-1 gap-3">
-          <input className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium outline-none" placeholder="Descripción" value={newName} onChange={e => setNewName(e.target.value)} />
-          {showDatePicker && <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium outline-none" />}
-        </div>
-        <div className="grid grid-cols-12 gap-2 items-end">
-          <div className={`${showDueDay ? 'col-span-8' : 'col-span-10'} relative`}>
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-            <input type="text" className="w-full p-3 pl-7 bg-slate-50 border border-slate-100 rounded-xl text-sm font-black outline-none" placeholder="0,00" value={newAmount} onChange={e => setNewAmount(e.target.value)} />
-          </div>
-          {showDueDay && <input type="number" className="col-span-2 w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-black text-center outline-none" placeholder="Día" value={newDueDay} onChange={e => setNewDueDay(e.target.value)} />}
-          <button type="submit" className="col-span-2 bg-slate-900 text-white h-[46px] rounded-xl flex items-center justify-center"><Icons.Plus /></button>
-        </div>
-        {showCategories && (
-          <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-            {(type === 'recurring' ? CATEGORIES_RECURRING : CATEGORIES_DAILY).map(cat => (
-              <button key={cat} type="button" onClick={() => setNewCategory(cat)} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest whitespace-nowrap border ${newCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>{cat}</button>
-            ))}
-          </div>
-        )}
-      </form>
-
-      <div className="space-y-3">
-        {sortedItems.map(item => <ItemCard key={item.id} item={item} accent={accent} onDel={() => onDelete(item.id)} onEdit={onUpdate} onToggle={onToggle} showCheck={showCheck} showDueDay={showDueDay} />)}
-      </div>
-    </div>
-  );
-};
-
-const ItemCard = ({ item, accent, onDel, onEdit, onToggle, showCheck, showDueDay }) => {
-  const [showPartial, setShowPartial] = useState(false);
-  const [partialVal, setPartialVal] = useState('');
-  
-  const borderColors = { emerald: "border-emerald-500", rose: "border-rose-500", amber: "border-amber-500" };
-  const categories = item.type === 'recurring' ? CATEGORIES_RECURRING : CATEGORIES_DAILY;
-  const isCC = item.name?.toLowerCase().includes("visa") || item.name?.toLowerCase().includes("master") || item.category === "Tarjetas";
-
-  return (
-    <div className={`bg-white p-5 rounded-[1.5rem] border-l-[8px] ${item.paid && item.type !== 'income' ? 'border-emerald-500 opacity-60' : borderColors[accent] || 'border-slate-300'} shadow-sm flex flex-col gap-3 transition-all`}>
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center flex-wrap gap-2 mb-1">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">{item.name}</span>
-            <div className="flex gap-1">
-              {showDueDay ? <span className="bg-slate-100 text-[8px] font-black px-1.5 py-0.5 rounded text-slate-500">Día {item.dueDay}</span> : <span className="bg-slate-50 text-[8px] font-black px-1.5 py-0.5 rounded text-slate-400 border">{new Date(item.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}</span>}
-              <span className="bg-slate-50 text-[8px] font-black px-2 py-0.5 rounded-full text-slate-500 border border-slate-100 uppercase">{item.category}</span>
-            </div>
-          </div>
-          <p className="text-xl font-black text-slate-900 tracking-tighter">{formatCurrency(item.amount)}</p>
-          {item.paid && item.paymentType === 'partial' && <p className="text-[9px] font-black text-amber-500 uppercase mt-1">Abonado: {formatCurrency(item.paidAmount)}</p>}
-        </div>
-        <div className="flex gap-2">
-          {showCheck && (
-            <div className="flex gap-1">
-               {!item.paid ? (
-                 <>
-                   <button onClick={() => onToggle(item)} className="p-2.5 rounded-xl border border-slate-100 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50"><Icons.Check /></button>
-                   {isCC && <button onClick={() => setShowPartial(!showPartial)} className="p-2.5 rounded-xl border border-slate-100 text-slate-400 font-black text-xs hover:bg-amber-50">P</button>}
-                 </>
-               ) : <button onClick={() => onToggle(item)} className="p-2.5 rounded-xl bg-emerald-500 text-white shadow-md"><Icons.Check /></button>}
-            </div>
-          )}
-          <button onClick={onDel} className="p-2.5 rounded-xl border border-slate-100 text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"><Icons.Trash /></button>
-        </div>
-      </div>
-      {showPartial && !item.paid && (
-        <div className="flex gap-2 items-end p-3 bg-amber-50 rounded-2xl animate-fade-in border border-amber-100">
-            <input type="text" className="flex-1 p-2 bg-white border border-amber-200 rounded-xl text-xs font-black outline-none" placeholder="Monto parcial..." value={partialVal} onChange={e => setPartialVal(e.target.value)} />
-            <button onClick={() => {onToggle(item, 'partial', parseLocaleNumber(partialVal)); setShowPartial(false);}} className="bg-amber-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase">Ok</button>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const AnalysisView = ({ currentMonthItems, stats }) => {
-  const chartRef = useRef(null);
-  const chartInstance = useRef(null);
-  
-  const byCategory = useMemo(() => {
-    const cats = {};
-    currentMonthItems.forEach(i => {
-      if (i.type === 'income') return;
-      const val = i.paymentType === 'partial' ? (parseFloat(i.paidAmount) || 0) : (parseFloat(i.amount) || 0);
-      cats[i.category || 'General'] = (cats[i.category || 'General'] || 0) + val;
-    });
-    return Object.entries(cats).sort((a,b) => b[1] - a[1]);
-  }, [currentMonthItems]);
-
-  useEffect(() => {
-    // Verificamos si Chart.js está disponible en el scope global
-    if (typeof Chart === 'undefined' || !chartRef.current) return;
-    
-    if (chartInstance.current) {
-        chartInstance.current.destroy();
-    }
-
-    const ctx = chartRef.current.getContext('2d');
-    chartInstance.current = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: byCategory.map(c => c[0]),
-        datasets: [{
-          data: byCategory.map(c => c[1]),
-          backgroundColor: ['#0f172a', '#334155', '#475569', '#64748b', '#94a3b8', '#cbd5e1'],
-          borderWidth: 0,
-          hoverOffset: 4
-        }]
-      },
-      options: {
-        cutout: '75%',
-        plugins: { legend: { display: false } },
-        responsive: true,
-        maintainAspectRatio: false
-      }
-    });
-
-    return () => {
-        if (chartInstance.current) chartInstance.current.destroy();
-    };
-  }, [byCategory]);
-
-  return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="bg-white p-6 rounded-[2.5rem] shadow-sm flex flex-col items-center">
-        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Gastos por Categoría</h3>
-        <div className="relative w-48 h-48 mb-6">
-          <canvas ref={chartRef}></canvas>
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Total</p>
-            <p className="text-xl font-black text-slate-900 tracking-tighter">{formatCurrency(stats.totalSpent)}</p>
-          </div>
-        </div>
-        <div className="w-full space-y-3">
-          {byCategory.length === 0 ? (
-             <p className="text-xs text-slate-400 italic text-center">Sin datos este mes</p>
-          ) : byCategory.map(([cat, amount]) => (
-            <div key={cat} className="space-y-1.5">
-              <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
-                <span className="text-slate-500">{cat}</span>
-                <span className="text-slate-900">{formatCurrency(amount)}</span>
-              </div>
-              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                <div className="h-full bg-slate-900" style={{ width: `${(amount / (stats.totalSpent || 1)) * 100}%` }}></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
