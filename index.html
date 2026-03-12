@@ -18,7 +18,14 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-        body { background-color: #f8fafc; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; color: #1e293b; }
+        body { 
+            background-color: #f8fafc; 
+            font-family: 'Inter', sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+            color: #1e293b;
+            overflow-x: hidden;
+            width: 100%;
+        }
         svg { width: 1.5rem; height: 1.5rem; display: inline-block; }
         .glass-nav { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); border-top: 1px solid rgba(0,0,0,0.05); }
         .card-shadow { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02); }
@@ -28,9 +35,22 @@
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
         input:focus { outline: none; border-color: #0f172a; }
         
+        .main-container {
+            width: 100%;
+            max-width: 100%;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
         @media (min-width: 768px) {
-            .main-container { max-width: 1024px; margin: 0 auto; }
+            .main-container { max-width: 1024px; margin: 0 auto; padding-left: 1.5rem; padding-right: 1.5rem; }
             .desktop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+        }
+
+        /* Fix para evitar scroll horizontal en cards */
+        .item-card {
+            max-width: 100%;
+            overflow: hidden;
         }
     </style>
 </head>
@@ -62,9 +82,9 @@
             '#f59e0b', // Amber 500
             '#6366f1', // Indigo 500
             '#8b5cf6', // Violet 500
-            '#ec4899', // Pink 500
             '#06b6d4', // Cyan 500
             '#f97316', // Orange 500
+            '#ec4899', // Pink 500
             '#14b8a6', // Teal 500
             '#3b82f6', // Blue 500
             '#a855f7', // Purple 500
@@ -90,6 +110,7 @@
         const formatCurrency = (val) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(val || 0);
         
         const parseLocaleNumber = (str) => {
+            if (typeof str === 'number') return str;
             if (!str) return 0;
             const clean = str.toString().replace(/\./g, '').replace(',', '.');
             const num = parseFloat(clean);
@@ -130,7 +151,6 @@
                 const month = navDate.getMonth();
                 const year = navDate.getFullYear();
                 
-                // Helper para evitar problemas de zona horaria al comparar meses
                 const currentMonthItems = items.filter(item => {
                     if (!item.date) return false;
                     const d = new Date(item.date);
@@ -173,7 +193,6 @@
             const addItem = async (data) => {
                 if (!user) return;
                 const colRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions');
-                // Almacenamos la fecha con una hora fija para evitar saltos de día por zona horaria
                 const finalDate = data.date ? data.date.split('T')[0] + 'T12:00:00Z' : new Date().toISOString();
                 await colRef.add({
                     ...data,
@@ -186,7 +205,7 @@
                 if (!user) return;
                 const docRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions').doc(id);
                 const updates = { ...data };
-                if (data.date) updates.date = data.date.split('T')[0] + 'T12:00:00Z';
+                if (data.date && typeof data.date === 'string') updates.date = data.date.split('T')[0] + 'T12:00:00Z';
                 await docRef.update(updates);
             };
 
@@ -228,8 +247,10 @@
 
             const copyPreviousMonth = async () => {
                 if (!user) return;
-                const prevDate = new Date(navDate);
-                prevDate.setMonth(prevDate.getMonth() - 1);
+                const targetMonth = navDate.getMonth();
+                const targetYear = navDate.getFullYear();
+                
+                const prevDate = new Date(targetYear, targetMonth - 1, 1);
                 const prevMonth = prevDate.getMonth();
                 const prevYear = prevDate.getFullYear();
 
@@ -239,18 +260,23 @@
                     return d.getUTCMonth() === prevMonth && d.getUTCFullYear() === prevYear && (item.type === 'income' || item.type === 'recurring');
                 });
 
+                if (prevItems.length === 0) return;
+
                 const colRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions');
                 const batch = db.batch();
+                
+                const targetDateStr = new Date(targetYear, targetMonth, 1).toISOString().split('T')[0] + 'T12:00:00Z';
+
                 prevItems.forEach(item => {
                     const newDoc = colRef.doc();
+                    const { id, createdAt, ...dataToCopy } = item;
                     batch.set(newDoc, {
-                        ...item,
-                        id: undefined,
+                        ...dataToCopy,
                         amount: 0,
                         paid: item.type === 'income',
                         paymentType: null,
                         paidAmount: 0,
-                        date: navDate.toISOString().split('T')[0] + 'T12:00:00Z',
+                        date: targetDateStr,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 });
@@ -290,9 +316,9 @@
             );
 
             return (
-                <div className="min-h-screen pb-32 bg-slate-50 animate-fade-in relative">
+                <div className="min-h-screen pb-32 bg-slate-50 animate-fade-in relative w-full">
                     <header className="bg-white border-b border-slate-100 md:rounded-b-[3rem] shadow-sm mb-6">
-                        <div className="main-container p-5">
+                        <div className="main-container py-5">
                             <div className="flex items-center justify-between mb-6">
                                 <h1 className="text-2xl md:text-3xl font-black text-slate-900 flex items-center gap-2"><span className="bg-slate-900 text-white px-2 py-1 rounded-xl">P</span> Platita</h1>
                                 <button onClick={() => auth.signOut()} className="text-slate-300 hover:text-rose-500 transition-colors flex items-center gap-2 text-sm font-bold">
@@ -321,18 +347,18 @@
                                     </div>
                                 </div>
                                 <div className="hidden md:block">
-                                    <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} isSmall />
+                                    <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} items={items} isSmall />
                                 </div>
                             </div>
                         </div>
                     </header>
 
-                    <main className="main-container px-5 space-y-8">
+                    <main className="main-container space-y-8">
                         {view === 'dashboard' && (
                             <div className="space-y-6">
                                 <div className="flex justify-center">
                                     <button onClick={copyPreviousMonth} className="bg-slate-900 text-white px-5 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 transition-all active:scale-95">
-                                        <Icons.Copy /> Copiar conceptos anteriores
+                                        <Icons.Copy /> Conceptos anteriores
                                     </button>
                                 </div>
 
@@ -353,13 +379,13 @@
                                                 </div>
                                                 <span className={`${item.isOverdue ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'} px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap ml-2`}>Día {item.dueDay}</span>
                                             </div>
-                                        )) : <p className="text-slate-400 text-xs font-medium italic">No hay pagos pendientes con importe asignado.</p>}
+                                        )) : <p className="text-slate-400 text-xs font-medium italic text-center w-full">Sin pagos pendientes.</p>}
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {view === 'analysis' && <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} />}
+                        {view === 'analysis' && <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} items={items} />}
                         
                         {(view === 'income' || view === 'recurring' || view === 'daily') && (
                             <ListView 
@@ -418,7 +444,7 @@
         };
 
         const NavTab = ({ active, onClick, icon, label }) => (
-            <button onClick={onClick} className={`p-3 rounded-2xl flex flex-col items-center gap-1 transition-all md:px-6 md:hover:bg-slate-50 ${active ? 'bg-slate-900 text-white shadow-lg scale-105' : 'text-slate-400'}`}>
+            <button onClick={onClick} className={`p-2.5 rounded-2xl flex flex-col items-center gap-1 transition-all md:px-6 md:hover:bg-slate-50 ${active ? 'bg-slate-900 text-white shadow-lg scale-105' : 'text-slate-400'}`}>
                 {icon} <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest">{label}</span>
             </button>
         );
@@ -516,7 +542,6 @@
             const currentDay = today.getDate();
             const amount = parseFloat(item.amount) || 0;
             
-            // Lógica de comparación UTC para evitar desfases horarios
             const itemDate = item.date ? new Date(item.date) : new Date();
             const isCurrentMonth = navDate && navDate.getMonth() === today.getMonth() && navDate.getFullYear() === today.getFullYear();
             const isPastMonth = navDate && navDate < new Date(today.getFullYear(), today.getMonth(), 1);
@@ -531,68 +556,70 @@
             };
 
             return (
-                <div className={`bg-white p-6 rounded-[2.2rem] border-l-[10px] transition-all animate-fade-in hover:shadow-md ${item.paid && item.type !== 'income' ? 'border-emerald-500 opacity-60' : isOverdue ? 'border-rose-500 ring-2 ring-rose-100 shadow-rose-100' : colorClass} shadow-sm space-y-4`}>
-                    <div className="flex justify-between items-start gap-4">
+                <div className={`item-card bg-white p-5 md:p-6 rounded-[2.2rem] border-l-[10px] transition-all animate-fade-in hover:shadow-md ${item.paid && item.type !== 'income' ? 'border-emerald-500 opacity-60' : isOverdue ? 'border-rose-500 ring-2 ring-rose-100 shadow-rose-100' : colorClass} shadow-sm space-y-4`}>
+                    <div className="flex justify-between items-start gap-3">
                         <div className="flex-1 min-w-0">
                             {isEditing ? (
                                 <div className="space-y-3">
                                     <input className="w-full text-[11px] font-black uppercase p-2 border-b border-slate-200 outline-none focus:border-slate-900" value={editName} onChange={e=>setEditName(e.target.value)} autoFocus />
                                     <div className="flex gap-2">
-                                        <input className="flex-1 text-2xl font-black p-2 border-b border-slate-200 outline-none focus:border-slate-900" value={editAmount} onChange={e=>setEditAmount(e.target.value)} />
-                                        {item.type === 'recurring' && <input type="number" className="w-16 text-lg font-black p-2 border-b border-slate-200 outline-none focus:border-slate-900" value={editDueDay} onChange={e=>setEditDueDay(e.target.value)} title="Día de vto" />}
+                                        <input className="flex-1 text-xl font-black p-2 border-b border-slate-200 outline-none focus:border-slate-900" value={editAmount} onChange={e=>setEditAmount(e.target.value)} />
+                                        {item.type === 'recurring' && <input type="number" className="w-14 text-lg font-black p-2 border-b border-slate-200 outline-none focus:border-slate-900 text-center" value={editDueDay} onChange={e=>setEditDueDay(e.target.value)} />}
                                     </div>
-                                    {item.type === 'daily' && <input type="date" className="w-full text-xs font-black p-2 border border-slate-100 rounded-xl" value={editDate} onChange={e=>setEditDate(e.target.value)} />}
                                     <div className="flex gap-2 pt-2">
-                                        <button onClick={saveEdit} className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase">Guardar</button>
-                                        <button onClick={()=>setIsEditing(false)} className="bg-slate-100 text-slate-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase">Cancelar</button>
+                                        <button onClick={saveEdit} className="bg-slate-900 text-white px-3 py-1.5 rounded-xl text-[9px] font-black uppercase">Ok</button>
+                                        <button onClick={()=>setIsEditing(false)} className="bg-slate-100 text-slate-500 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase">X</button>
                                     </div>
                                 </div>
                             ) : (
                                 <div onClick={() => setIsEditing(true)} className="cursor-text">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <span className="text-[10px] font-black text-slate-500 uppercase truncate">{item.name}</span>
-                                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border uppercase ${isOverdue ? 'bg-rose-500 text-white border-rose-500 animate-pulse' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>{item.category}</span>
+                                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                        <span className="text-[10px] font-black text-slate-500 uppercase truncate max-w-[120px]">{item.name}</span>
+                                        <span className={`text-[8px] font-black px-2 py-0.5 rounded-full border uppercase ${isOverdue ? 'bg-rose-500 text-white border-rose-500 animate-pulse' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>{item.category}</span>
                                     </div>
-                                    <p className="text-2xl font-black text-slate-900 tracking-tighter">{formatCurrency(item.amount)}</p>
-                                    <div className="flex gap-2 mt-2">
+                                    <p className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter">{formatCurrency(item.amount)}</p>
+                                    <div className="flex gap-2 mt-2 flex-wrap">
                                         {item.type === 'recurring' && (
                                             <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${isOverdue ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-amber-50 text-amber-500 border-amber-100'}`}>
-                                                {isOverdue ? "¡VENCIDO!" : `Vence Día ${item.dueDay || '---'}`}
+                                                {isOverdue ? "VENCIDO" : `Día ${item.dueDay || '---'}`}
                                             </span>
                                         )}
                                         {item.type === 'daily' && <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{itemDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}</span>}
                                     </div>
                                 </div>
                             )}
-                            {item.paid && item.paymentType === 'partial' && <p className="text-[10px] font-black text-amber-500 uppercase mt-3 italic flex items-center gap-1"><span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span> Abonado: {formatCurrency(item.paidAmount)}</p>}
+                            {item.paid && item.paymentType === 'partial' && <p className="text-[9px] font-black text-amber-500 uppercase mt-2 italic flex items-center gap-1 leading-none"><span className="w-1 h-1 bg-amber-500 rounded-full animate-pulse"></span> P. Parcial: {formatCurrency(item.paidAmount)}</p>}
                         </div>
-                        <div className="flex gap-2 shrink-0">
+                        <div className="flex gap-1.5 shrink-0">
                             {item.type !== 'income' && (
                                 <div className="flex gap-1">
                                     {!item.paid ? (
                                         <>
-                                            <button onClick={(e) => { e.stopPropagation(); onToggle(item); }} className={`p-3.5 rounded-2xl border transition-all shadow-sm ${isOverdue ? 'bg-rose-50 text-rose-500 border-rose-200 hover:bg-rose-500 hover:text-white' : 'border-slate-100 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50'}`}><Icons.Check /></button>
-                                            {isCC && <button onClick={(e) => { e.stopPropagation(); setShowPartial(!showPartial); }} className="p-3.5 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs hover:bg-amber-50 transition-all shadow-sm">P</button>}
+                                            <button onClick={(e) => { e.stopPropagation(); onToggle(item); }} className={`p-3 rounded-2xl border transition-all shadow-sm ${isOverdue ? 'bg-rose-50 text-rose-500 border-rose-200' : 'border-slate-100 text-slate-400 hover:bg-emerald-50'}`}><Icons.Check /></button>
+                                            {isCC && <button onClick={(e) => { e.stopPropagation(); setShowPartial(!showPartial); }} className="p-3 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs hover:bg-amber-50 shadow-sm">P</button>}
                                         </>
-                                    ) : <button onClick={(e) => { e.stopPropagation(); onToggle(item); }} className="p-3.5 rounded-2xl bg-emerald-500 text-white shadow-lg scale-105 transition-all"><Icons.Check /></button>}
+                                    ) : <button onClick={(e) => { e.stopPropagation(); onToggle(item); }} className="p-3 rounded-2xl bg-emerald-500 text-white shadow-lg scale-105 transition-all"><Icons.Check /></button>}
                                 </div>
                             )}
-                            <button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} className="p-3.5 rounded-2xl border border-slate-100 text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all shadow-sm"><Icons.Trash /></button>
+                            <button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} className="p-3 rounded-2xl border border-slate-100 text-slate-300 hover:text-rose-500 transition-all shadow-sm"><Icons.Trash /></button>
                         </div>
                     </div>
                     {showPartial && !item.paid && (
                         <div className="flex gap-2 items-end p-4 bg-amber-50/50 rounded-3xl border border-amber-100/50 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-                            <input type="text" className="flex-1 p-3 bg-white border border-amber-200 rounded-xl text-xs font-black outline-none shadow-sm" placeholder="Monto parcial..." value={partialVal} onChange={e => setPartialVal(e.target.value)} />
-                            <button onClick={() => {onToggle(item, 'partial', parseLocaleNumber(partialVal)); setShowPartial(false);}} className="bg-amber-500 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase shadow-lg hover:bg-amber-600 transition-all">Confirmar</button>
+                            <input type="text" className="flex-1 p-3 bg-white border border-amber-200 rounded-xl text-xs font-black outline-none shadow-sm" placeholder="Abonado..." value={partialVal} onChange={e => setPartialVal(e.target.value)} />
+                            <button onClick={() => {onToggle(item, 'partial', parseLocaleNumber(partialVal)); setShowPartial(false);}} className="bg-amber-500 text-white px-4 py-2.5 rounded-xl text-[9px] font-black uppercase shadow-lg">Ok</button>
                         </div>
                     )}
                 </div>
             );
         };
 
-        const AnalysisView = ({ currentMonthItems, stats, isSmall }) => {
+        const AnalysisView = ({ currentMonthItems, stats, items, isSmall }) => {
             const chartRef = useRef(null);
+            const trendRef = useRef(null);
             const chartInstance = useRef(null);
+            const trendInstance = useRef(null);
+            
             const byCategory = useMemo(() => {
                 const cats = {};
                 currentMonthItems.forEach(i => {
@@ -603,31 +630,85 @@
                 return Object.entries(cats).sort((a,b) => b[1] - a[1]);
             }, [currentMonthItems]);
 
-            useEffect(() => {
-                if (typeof Chart === 'undefined' || !chartRef.current) return;
-                if (chartInstance.current) chartInstance.current.destroy();
-                const ctx = chartRef.current.getContext('2d');
-                chartInstance.current = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: byCategory.map(c => c[0]),
-                        datasets: [{ 
-                            data: byCategory.map(c => c[1]), 
-                            backgroundColor: CHART_COLORS, 
-                            borderWidth: 0,
-                            hoverOffset: 10
-                        }]
-                    },
-                    options: { 
-                        cutout: isSmall ? '85%' : '75%', 
-                        plugins: { legend: { display: false } }, 
-                        responsive: true, 
-                        maintainAspectRatio: false,
-                        animation: { animateRotate: true, animateScale: true }
+            const evolutionData = useMemo(() => {
+                const monthsToShow = 6;
+                const result = [];
+                const now = new Date();
+                
+                for(let i = monthsToShow - 1; i >= 0; i--) {
+                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    result.push({
+                        month: d.getUTCMonth(),
+                        year: d.getUTCFullYear(),
+                        label: d.toLocaleString('es-ES', { month: 'short' }),
+                        fixed: 0,
+                        daily: 0
+                    });
+                }
+
+                items.forEach(item => {
+                    if(!item.date) return;
+                    const idate = new Date(item.date);
+                    const imonth = idate.getUTCMonth();
+                    const iyear = idate.getUTCFullYear();
+                    
+                    const point = result.find(p => p.month === imonth && p.year === iyear);
+                    if (point) {
+                        const val = item.paymentType === 'partial' ? (parseFloat(item.paidAmount) || 0) : (parseFloat(item.amount) || 0);
+                        if (item.type === 'recurring') point.fixed += val;
+                        if (item.type === 'daily') point.daily += val;
                     }
                 });
-                return () => { if (chartInstance.current) chartInstance.current.destroy(); };
-            }, [byCategory, isSmall]);
+                return result;
+            }, [items]);
+
+            useEffect(() => {
+                if (typeof Chart === 'undefined') return;
+                
+                // Gráfico Circular
+                if (chartRef.current) {
+                    if (chartInstance.current) chartInstance.current.destroy();
+                    const ctx = chartRef.current.getContext('2d');
+                    chartInstance.current = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: byCategory.map(c => c[0]),
+                            datasets: [{ data: byCategory.map(c => c[1]), backgroundColor: CHART_COLORS, borderWidth: 0 }]
+                        },
+                        options: { cutout: isSmall ? '85%' : '75%', plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: false }
+                    });
+                }
+
+                // Gráfico de Tendencia
+                if (trendRef.current) {
+                    if (trendInstance.current) trendInstance.current.destroy();
+                    const ctxTrend = trendRef.current.getContext('2d');
+                    trendInstance.current = new Chart(ctxTrend, {
+                        type: 'line',
+                        data: {
+                            labels: evolutionData.map(d => d.label),
+                            datasets: [
+                                { label: 'Fijos', data: evolutionData.map(d => d.fixed), borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0.4, borderWidth: 3, pointRadius: 4 },
+                                { label: 'Diarios', data: evolutionData.map(d => d.daily), borderColor: '#f43f5e', backgroundColor: '#f43f5e', tension: 0.4, borderWidth: 3, pointRadius: 4 }
+                            ]
+                        },
+                        options: {
+                            plugins: { legend: { position: 'bottom', labels: { font: { size: 10, weight: 'bold' }, usePointStyle: true } } },
+                            scales: { 
+                                y: { beginAtZero: true, grid: { display: false }, ticks: { font: { size: 8 } } },
+                                x: { grid: { display: false }, ticks: { font: { size: 8, weight: 'bold' } } }
+                            },
+                            responsive: true,
+                            maintainAspectRatio: false
+                        }
+                    });
+                }
+
+                return () => { 
+                    if (chartInstance.current) chartInstance.current.destroy(); 
+                    if (trendInstance.current) trendInstance.current.destroy(); 
+                };
+            }, [byCategory, evolutionData, isSmall]);
 
             if (isSmall) {
                 return (
@@ -648,31 +729,40 @@
             }
 
             return (
-                <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-sm border border-slate-100 md:grid md:grid-cols-2 md:gap-12 items-center">
-                    <div className="flex flex-col items-center mb-8 md:mb-0">
-                        <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-8">Egresos por Categoría</h3>
-                        <div className="relative w-64 h-64 md:w-80 md:h-80">
-                            <canvas ref={chartRef}></canvas>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                <p className="text-[10px] font-black text-slate-400 uppercase">Total Mes</p>
-                                <p className="text-3xl font-black text-slate-900 tracking-tight">{formatCurrency(stats.totalSpent)}</p>
+                <div className="space-y-8 animate-fade-in">
+                    <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-sm border border-slate-100 md:grid md:grid-cols-2 md:gap-12 items-center">
+                        <div className="flex flex-col items-center mb-8 md:mb-0">
+                            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-8">Gastos por Categoría</h3>
+                            <div className="relative w-64 h-64 md:w-80 md:h-80">
+                                <canvas ref={chartRef}></canvas>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase">Mes Actual</p>
+                                    <p className="text-3xl font-black text-slate-900 tracking-tight">{formatCurrency(stats.totalSpent)}</p>
+                                </div>
                             </div>
                         </div>
+                        <div className="w-full space-y-4">
+                            {byCategory.length === 0 ? (
+                                <p className="text-sm text-slate-400 italic text-center italic">Sin gastos registrados.</p>
+                            ) : byCategory.map(([cat, amount], idx) => (
+                                <div key={cat} className="space-y-2">
+                                    <div className="flex justify-between items-center text-[11px] font-black uppercase">
+                                        <span style={{ color: CHART_COLORS[idx % CHART_COLORS.length] }}>{cat}</span>
+                                        <span className="text-slate-900">{formatCurrency(amount)}</span>
+                                    </div>
+                                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                        <div className="h-full transition-all duration-1000" style={{ width: `${(amount / (stats.totalSpent || 1)) * 100}%`, backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    <div className="w-full space-y-4">
-                        {byCategory.length === 0 ? (
-                            <p className="text-sm text-slate-400 italic text-center">Sin datos registrados.</p>
-                        ) : byCategory.map(([cat, amount], idx) => (
-                            <div key={cat} className="space-y-2">
-                                <div className="flex justify-between items-center text-[11px] font-black uppercase">
-                                    <span style={{ color: CHART_COLORS[idx % CHART_COLORS.length] }}>{cat}</span>
-                                    <span className="text-slate-900">{formatCurrency(amount)}</span>
-                                </div>
-                                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                                    <div className="h-full transition-all duration-1000" style={{ width: `${(amount / (stats.totalSpent || 1)) * 100}%`, backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}></div>
-                                </div>
-                            </div>
-                        ))}
+
+                    <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
+                        <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-8 text-center">Evolución Semestral</h3>
+                        <div className="relative h-64 w-full">
+                            <canvas ref={trendRef}></canvas>
+                        </div>
                     </div>
                 </div>
             );
