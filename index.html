@@ -347,7 +347,7 @@
                                     </div>
                                 </div>
                                 <div className="hidden md:block">
-                                    <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} items={items} isSmall />
+                                    <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} items={items} navDate={navDate} isSmall />
                                 </div>
                             </div>
                         </div>
@@ -385,7 +385,7 @@
                             </div>
                         )}
 
-                        {view === 'analysis' && <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} items={items} />}
+                        {view === 'analysis' && <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} items={items} navDate={navDate} />}
                         
                         {(view === 'income' || view === 'recurring' || view === 'daily') && (
                             <ListView 
@@ -520,7 +520,7 @@
                         {items.sort((a,b) => {
                             if (type === 'recurring') return (a.dueDay || 0) - (b.dueDay || 0);
                             return new Date(b.date) - new Date(a.date);
-                        }).map(item => <ItemCard key={item.id} item={item} onUpdate={onUpdate} onToggle={onToggle} onDelete={onDelete} accent={accent} navDate={navDate} />)}
+                        }).map(item => <ItemCard key={item.id} item={item} onUpdate={onUpdate} onToggle={toggleItem} onDelete={onDelete} accent={accent} navDate={navDate} />)}
                     </div>
                 </div>
             );
@@ -595,7 +595,7 @@
                                 <div className="flex gap-1">
                                     {!item.paid ? (
                                         <>
-                                            <button onClick={(e) => { e.stopPropagation(); onToggle(item); }} className={`p-3 rounded-2xl border transition-all shadow-sm ${isOverdue ? 'bg-rose-50 text-rose-500 border-rose-200' : 'border-slate-100 text-slate-400 hover:bg-emerald-50'}`}><Icons.Check /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); onToggle(item); }} className={`p-3 rounded-2xl border transition-all shadow-sm ${isOverdue ? 'bg-rose-50 text-rose-500 border-rose-200 hover:bg-rose-500 hover:text-white' : 'border-slate-100 text-slate-400 hover:bg-emerald-50'}`}><Icons.Check /></button>
                                             {isCC && <button onClick={(e) => { e.stopPropagation(); setShowPartial(!showPartial); }} className="p-3 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs hover:bg-amber-50 shadow-sm">P</button>}
                                         </>
                                     ) : <button onClick={(e) => { e.stopPropagation(); onToggle(item); }} className="p-3 rounded-2xl bg-emerald-500 text-white shadow-lg scale-105 transition-all"><Icons.Check /></button>}
@@ -614,12 +614,25 @@
             );
         };
 
-        const AnalysisView = ({ currentMonthItems, stats, items, isSmall }) => {
+        const AnalysisView = ({ currentMonthItems, stats, items, navDate, isSmall }) => {
             const chartRef = useRef(null);
             const trendRef = useRef(null);
             const chartInstance = useRef(null);
             const trendInstance = useRef(null);
             
+            const [selectedRecurringName, setSelectedRecurringName] = useState("");
+
+            const recurringNames = useMemo(() => {
+                const names = [...new Set(items.filter(i => i.type === 'recurring').map(i => i.name))];
+                return names.sort();
+            }, [items]);
+
+            useEffect(() => {
+                if (recurringNames.length > 0 && !selectedRecurringName) {
+                    setSelectedRecurringName(recurringNames[0]);
+                }
+            }, [recurringNames]);
+
             const byCategory = useMemo(() => {
                 const cats = {};
                 currentMonthItems.forEach(i => {
@@ -630,42 +643,36 @@
                 return Object.entries(cats).sort((a,b) => b[1] - a[1]);
             }, [currentMonthItems]);
 
-            const evolutionData = useMemo(() => {
-                const monthsToShow = 6;
+            const fullYearData = useMemo(() => {
+                const year = navDate.getUTCFullYear();
                 const result = [];
-                const now = new Date();
+                const monthLabels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
                 
-                for(let i = monthsToShow - 1; i >= 0; i--) {
-                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                for (let i = 0; i < 12; i++) {
                     result.push({
-                        month: d.getUTCMonth(),
-                        year: d.getUTCFullYear(),
-                        label: d.toLocaleString('es-ES', { month: 'short' }),
-                        fixed: 0,
-                        daily: 0
+                        label: monthLabels[i],
+                        amount: 0
                     });
                 }
 
+                if (!selectedRecurringName) return result;
+
                 items.forEach(item => {
-                    if(!item.date) return;
-                    const idate = new Date(item.date);
-                    const imonth = idate.getUTCMonth();
-                    const iyear = idate.getUTCFullYear();
-                    
-                    const point = result.find(p => p.month === imonth && p.year === iyear);
-                    if (point) {
-                        const val = item.paymentType === 'partial' ? (parseFloat(item.paidAmount) || 0) : (parseFloat(item.amount) || 0);
-                        if (item.type === 'recurring') point.fixed += val;
-                        if (item.type === 'daily') point.daily += val;
+                    if (item.type === 'recurring' && item.name === selectedRecurringName && item.date) {
+                        const d = new Date(item.date);
+                        if (d.getUTCFullYear() === year) {
+                            const val = item.paymentType === 'partial' ? (parseFloat(item.paidAmount) || 0) : (parseFloat(item.amount) || 0);
+                            result[d.getUTCMonth()].amount += val;
+                        }
                     }
                 });
                 return result;
-            }, [items]);
+            }, [items, selectedRecurringName, navDate]);
 
             useEffect(() => {
                 if (typeof Chart === 'undefined') return;
                 
-                // Gráfico Circular
+                // Gráfico Circular de Gastos del Mes
                 if (chartRef.current) {
                     if (chartInstance.current) chartInstance.current.destroy();
                     const ctx = chartRef.current.getContext('2d');
@@ -679,24 +686,34 @@
                     });
                 }
 
-                // Gráfico de Tendencia
-                if (trendRef.current) {
+                // Gráfico de Barras de Evolución Anual
+                if (trendRef.current && !isSmall) {
                     if (trendInstance.current) trendInstance.current.destroy();
                     const ctxTrend = trendRef.current.getContext('2d');
                     trendInstance.current = new Chart(ctxTrend, {
-                        type: 'line',
+                        type: 'bar',
                         data: {
-                            labels: evolutionData.map(d => d.label),
-                            datasets: [
-                                { label: 'Fijos', data: evolutionData.map(d => d.fixed), borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0.4, borderWidth: 3, pointRadius: 4 },
-                                { label: 'Diarios', data: evolutionData.map(d => d.daily), borderColor: '#f43f5e', backgroundColor: '#f43f5e', tension: 0.4, borderWidth: 3, pointRadius: 4 }
-                            ]
+                            labels: fullYearData.map(d => d.label),
+                            datasets: [{
+                                label: 'Monto Mensual',
+                                data: fullYearData.map(d => d.amount),
+                                backgroundColor: '#6366f1',
+                                borderRadius: 8,
+                                hoverBackgroundColor: '#4338ca'
+                            }]
                         },
                         options: {
-                            plugins: { legend: { position: 'bottom', labels: { font: { size: 10, weight: 'bold' }, usePointStyle: true } } },
+                            plugins: { 
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        label: (context) => formatCurrency(context.raw)
+                                    }
+                                }
+                            },
                             scales: { 
-                                y: { beginAtZero: true, grid: { display: false }, ticks: { font: { size: 8 } } },
-                                x: { grid: { display: false }, ticks: { font: { size: 8, weight: 'bold' } } }
+                                y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 } } },
+                                x: { grid: { display: false }, ticks: { font: { size: 10, weight: 'bold' } } }
                             },
                             responsive: true,
                             maintainAspectRatio: false
@@ -708,7 +725,7 @@
                     if (chartInstance.current) chartInstance.current.destroy(); 
                     if (trendInstance.current) trendInstance.current.destroy(); 
                 };
-            }, [byCategory, evolutionData, isSmall]);
+            }, [byCategory, fullYearData, isSmall]);
 
             if (isSmall) {
                 return (
@@ -729,7 +746,8 @@
             }
 
             return (
-                <div className="space-y-8 animate-fade-in">
+                <div className="space-y-8 animate-fade-in pb-10">
+                    {/* Gráfico de Categorías Mensual */}
                     <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-sm border border-slate-100 md:grid md:grid-cols-2 md:gap-12 items-center">
                         <div className="flex flex-col items-center mb-8 md:mb-0">
                             <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-8">Gastos por Categoría</h3>
@@ -758,10 +776,30 @@
                         </div>
                     </div>
 
+                    {/* Evolución de Gasto Fijo Específico */}
                     <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
-                        <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-8 text-center">Evolución Semestral</h3>
-                        <div className="relative h-64 w-full">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                            <div>
+                                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">Evolución Anual</h3>
+                                <h4 className="text-xl font-black text-slate-900 tracking-tight">Historial por Gasto Fijo</h4>
+                            </div>
+                            <select 
+                                value={selectedRecurringName} 
+                                onChange={e => setSelectedRecurringName(e.target.value)}
+                                className="p-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-indigo-200 transition-all cursor-pointer"
+                            >
+                                {recurringNames.length === 0 ? <option>Sin gastos fijos</option> : recurringNames.map(name => (
+                                    <option key={name} value={name}>{name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        
+                        <div className="relative h-72 w-full">
                             <canvas ref={trendRef}></canvas>
+                        </div>
+                        
+                        <div className="mt-6 flex justify-center">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Año: {navDate.getUTCFullYear()}</p>
                         </div>
                     </div>
                 </div>
