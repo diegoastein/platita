@@ -358,7 +358,7 @@
                         {view === 'dashboard' && (
                             <div className="space-y-6">
                                 <div className="flex justify-center">
-                                    <button onClick={copyPreviousMonth} className="bg-slate-900 text-white px-5 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 transition-all active:scale-95">
+                                    <button onClick={copyPreviousMonth} className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 transition-all active:scale-95">
                                         <Icons.Copy /> Conceptos anteriores
                                     </button>
                                 </div>
@@ -464,10 +464,16 @@
                 const data = { 
                     name: newName, 
                     amount: parseLocaleNumber(newAmount), 
-                    category: newCat, 
                     type, 
                     paid: type === 'income' 
                 };
+
+                // Solo agregamos categoría si no es de tipo 'income'
+                if (type !== 'income') {
+                    data.category = newCat;
+                } else {
+                    data.category = "Ingreso";
+                }
 
                 if (type === 'recurring') {
                     data.dueDay = parseInt(newDueDay) || 1;
@@ -511,17 +517,21 @@
                                 <input type="date" className="w-full md:w-auto p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium outline-none text-slate-800" value={newDate} onChange={e=>setNewDate(e.target.value)} />
                             </div>
                         )}
-                        <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
-                            {categories.map(cat => (
-                                <button key={cat} type="button" onClick={() => setNewCat(cat)} className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${newCat === cat ? 'bg-slate-900 text-white border-slate-900 shadow-md scale-105' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'}`}>{cat}</button>
-                            ))}
-                        </div>
+                        
+                        {/* Renderizamos categorías solo si NO es 'income' */}
+                        {type !== 'income' && (
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
+                                {categories.map(cat => (
+                                    <button key={cat} type="button" onClick={() => setNewCat(cat)} className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${newCat === cat ? 'bg-slate-900 text-white border-slate-900 shadow-md scale-105' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'}`}>{cat}</button>
+                                ))}
+                            </div>
+                        )}
                     </form>
                     <div className="desktop-grid">
                         {items.sort((a,b) => {
                             if (type === 'recurring') return (a.dueDay || 0) - (b.dueDay || 0);
                             return new Date(b.date) - new Date(a.date);
-                        }).map(item => <ItemCard key={item.id} item={item} onUpdate={onUpdate} onToggle={onToggle} onDelete={onDelete} accent={accent} navDate={navDate} />)}
+                        }).map(item => <ItemCard key={item.id} item={item} onUpdate={onUpdate} onToggle={toggleItem} onDelete={onDelete} accent={accent} navDate={navDate} />)}
                     </div>
                 </div>
             );
@@ -576,7 +586,10 @@
                                 <div onClick={() => setIsEditing(true)} className="cursor-text">
                                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                                         <span className="text-[10px] font-black text-slate-500 uppercase truncate max-w-[120px]">{item.name}</span>
-                                        <span className={`text-[8px] font-black px-2 py-0.5 rounded-full border uppercase ${isOverdue ? 'bg-rose-500 text-white border-rose-500 animate-pulse' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>{item.category}</span>
+                                        {/* Renderizamos etiqueta de categoría solo si NO es 'income' */}
+                                        {item.type !== 'income' && (
+                                            <span className={`text-[8px] font-black px-2 py-0.5 rounded-full border uppercase ${isOverdue ? 'bg-rose-500 text-white border-rose-500 animate-pulse' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>{item.category}</span>
+                                        )}
                                     </div>
                                     <p className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter leading-tight">{formatCurrency(item.amount)}</p>
                                     <div className="flex gap-2 mt-2 flex-wrap">
