@@ -103,7 +103,9 @@
             Analysis: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2v2m3 10v-3a2 2 0 012-2h2a2 2 0 012 2v3m2 0h-5m-9 0H3m9 0a9 9 0 0118 0v1H3v-1z" /></svg>,
             Settings: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
             Copy: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>,
-            Close: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            Close: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>,
+            Eye: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>,
+            EyeOff: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>
         };
 
         const formatCurrency = (val) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(val || 0);
@@ -123,7 +125,7 @@
             const [items, setItems] = useState([]);
             const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
             const [navDate, setNavDate] = useState(new Date());
-            const [hideBalance, setHideBalance] = useState(false);
+            const [hideBalance, setHideBalance] = useState(true); 
             const [loginData, setLoginData] = useState({ email: '', password: '' });
             const [authError, setAuthError] = useState(null);
 
@@ -147,8 +149,8 @@
             }, [user]);
 
             const stats = useMemo(() => {
-                const month = navDate.getMonth();
-                const year = navDate.getFullYear();
+                const month = navDate.getUTCMonth();
+                const year = navDate.getUTCFullYear();
                 
                 const currentMonthItems = items.filter(item => {
                     if (!item.date) return false;
@@ -158,8 +160,8 @@
 
                 const today = new Date();
                 const currentDay = today.getDate();
-                const isCurrentMonth = month === today.getMonth() && year === today.getFullYear();
-                const isPastMonth = navDate < new Date(today.getFullYear(), today.getMonth(), 1);
+                const isCurrentMonth = month === today.getUTCMonth() && year === today.getUTCFullYear();
+                const isPastMonth = navDate < new Date(today.getUTCFullYear(), today.getUTCMonth(), 1);
 
                 const income = currentMonthItems.filter(i => i.type === 'income').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
                 const recPaid = currentMonthItems.filter(i => i.type === 'recurring' && i.paid).reduce((a, c) => a + (c.paymentType === 'partial' ? (parseFloat(c.paidAmount) || 0) : (parseFloat(c.amount) || 0)), 0);
@@ -221,7 +223,7 @@
                         const remainder = item.amount - pAmount;
                         if (remainder > 0) {
                             const nextMonth = new Date(navDate);
-                            nextMonth.setMonth(nextMonth.getMonth() + 1);
+                            nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
                             await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions').add({
                                 name: `Saldo Pendiente ${item.name}`,
                                 amount: remainder,
@@ -239,24 +241,23 @@
             const handleNavMonth = (dir) => {
                 setNavDate(prev => {
                     const d = new Date(prev);
-                    d.setMonth(d.getMonth() + dir);
+                    d.setUTCMonth(d.getUTCMonth() + dir);
                     return d;
                 });
             };
 
             const copyPreviousMonth = async () => {
                 if (!user) return;
-                const targetMonth = navDate.getMonth();
-                const targetYear = navDate.getFullYear();
+                const targetMonth = navDate.getUTCMonth();
+                const targetYear = navDate.getUTCFullYear();
                 
-                const prevDate = new Date(targetYear, targetMonth - 1, 1);
-                const prevMonth = prevDate.getMonth();
-                const prevYear = prevDate.getFullYear();
+                const prevDate = new Date(Date.UTC(targetYear, targetMonth - 1, 1));
+                const prevMonth = prevDate.getUTCMonth();
+                const prevYear = prevDate.getUTCFullYear();
 
                 const prevItems = items.filter(item => {
                     if (!item.date) return false;
                     const d = new Date(item.date);
-                    // Usamos UTC para comparar consistentemente
                     return d.getUTCMonth() === prevMonth && d.getUTCFullYear() === prevYear && (item.type === 'income' || item.type === 'recurring');
                 });
 
@@ -265,7 +266,7 @@
                 const colRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions');
                 const batch = db.batch();
                 
-                const targetDateStr = new Date(targetYear, targetMonth, 1).toISOString().split('T')[0] + 'T12:00:00Z';
+                const targetDateStr = new Date(Date.UTC(targetYear, targetMonth, 1)).toISOString().split('T')[0] + 'T12:00:00Z';
 
                 prevItems.forEach(item => {
                     const newDoc = colRef.doc();
@@ -302,11 +303,11 @@
             if (loading) return <div className="h-screen flex items-center justify-center bg-white"><div className="w-12 h-12 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div></div>;
 
             if (!user) return (
-                <div className="flex flex-col h-screen items-center justify-center bg-white p-8 animate-fade-in">
-                    <div className="bg-slate-900 text-white p-5 rounded-[2.5rem] mb-6 shadow-2xl"><Icons.Wallet /></div>
-                    <h1 className="text-4xl font-black text-slate-900 mb-2 text-center tracking-tighter leading-none">Platita</h1>
-                    <p className="text-slate-500 mb-10 text-center text-sm font-medium">Gestión inteligente de tus gastos.</p>
-                    <form onSubmit={handleLogin} className="w-full max-w-xs space-y-4">
+                <div className="flex flex-col h-screen items-center justify-center bg-white p-8 animate-fade-in text-center">
+                    <div className="bg-slate-900 text-white p-5 rounded-[2.5rem] mb-6 shadow-2xl inline-block mx-auto"><Icons.Wallet /></div>
+                    <h1 className="text-4xl font-black text-slate-900 mb-2 tracking-tighter leading-none">Platita</h1>
+                    <p className="text-slate-500 mb-10 text-sm font-medium">Gestión inteligente de tus gastos.</p>
+                    <form onSubmit={handleLogin} className="w-full max-w-xs space-y-4 mx-auto">
                         <input type="email" required className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none text-slate-800" placeholder="Email" value={loginData.email} onChange={e=>setLoginData({...loginData, email: e.target.value})} />
                         <input type="password" required className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none text-slate-800" placeholder="Contraseña" value={loginData.password} onChange={e=>setLoginData({...loginData, password: e.target.value})} />
                         {authError && <p className="text-rose-500 text-xs font-bold text-center">{authError}</p>}
@@ -330,13 +331,13 @@
                                 <div className="mb-6 md:mb-0">
                                     <div className="flex items-center justify-between bg-slate-100 p-1 rounded-full mb-5">
                                         <button onClick={() => handleNavMonth(-1)} className="p-2 hover:bg-white rounded-full transition-all"><Icons.ChevronLeft /></button>
-                                        <span className="text-[12px] md:text-sm font-black text-slate-700 uppercase tracking-widest">{navDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}</span>
+                                        <span className="text-[12px] md:text-sm font-black text-slate-700 uppercase tracking-widest">{navDate.toLocaleString('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</span>
                                         <button onClick={() => handleNavMonth(1)} className="p-2 hover:bg-white rounded-full transition-all"><Icons.ChevronRight /></button>
                                     </div>
 
                                     <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-xl relative overflow-hidden flex flex-col items-center">
-                                        <button onClick={() => setHideBalance(!hideBalance)} className="absolute top-4 right-6 text-slate-500 hover:text-white p-2 text-[10px] font-bold uppercase tracking-widest transition-all">
-                                            {hideBalance ? "Mostrar" : "Ocultar"}
+                                        <button onClick={() => setHideBalance(!hideBalance)} className="absolute top-4 right-6 text-slate-500 hover:text-white p-2 transition-all">
+                                            {hideBalance ? <Icons.Eye /> : <Icons.EyeOff />}
                                         </button>
                                         <p className="text-slate-400 text-[10px] md:text-xs font-black uppercase tracking-widest mb-1">Saldo Disponible</p>
                                         <h2 className="text-4xl md:text-5xl font-black mb-6 tracking-tight leading-none">{hideBalance ? "$ ••••••" : formatCurrency(stats.balance)}</h2>
@@ -357,7 +358,7 @@
                         {view === 'dashboard' && (
                             <div className="space-y-6">
                                 <div className="flex justify-center">
-                                    <button onClick={copyPreviousMonth} className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 transition-all active:scale-95">
+                                    <button onClick={copyPreviousMonth} className="bg-slate-900 text-white px-5 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:bg-slate-800 transition-all active:scale-95">
                                         <Icons.Copy /> Conceptos anteriores
                                     </button>
                                 </div>
@@ -367,7 +368,7 @@
                                         <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><Icons.Calendar /></div>
                                         <div className="flex-1">
                                             <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Pendientes Próximos</p>
-                                            <p className="text-3xl font-black text-slate-800 tracking-tight">{formatCurrency(stats.recPending)}</p>
+                                            <p className="text-3xl font-black text-slate-900 tracking-tight leading-none">{formatCurrency(stats.recPending)}</p>
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -389,7 +390,7 @@
                         
                         {(view === 'income' || view === 'recurring' || view === 'daily') && (
                             <ListView 
-                                title={view === 'income' ? 'Ingresos / Cobros' : view === 'recurring' ? 'Gastos Fijos' : 'Gastos Diarios'}
+                                title={view === 'income' ? 'Ingresos' : view === 'recurring' ? 'Gastos Fijos' : 'Gastos Diarios'}
                                 type={view}
                                 items={stats.currentMonthItems.filter(i => i.type === view)}
                                 categories={categories}
@@ -444,7 +445,7 @@
         };
 
         const NavTab = ({ active, onClick, icon, label }) => (
-            <button onClick={onClick} className={`p-3 rounded-2xl flex flex-col items-center gap-1 transition-all md:px-6 md:hover:bg-slate-50 ${active ? 'bg-slate-900 text-white shadow-lg scale-105' : 'text-slate-400'}`}>
+            <button onClick={onClick} className={`p-3 rounded-2xl flex flex-col items-center gap-1 transition-all md:px-6 md:hover:bg-slate-50 ${active ? 'bg-slate-900 text-white shadow-lg scale-105 font-bold' : 'text-slate-400'}`}>
                 {icon} <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest">{label}</span>
             </button>
         );
@@ -487,7 +488,7 @@
                         <div className="bg-rose-50 border border-rose-100 p-6 md:p-8 rounded-[2.5rem] flex items-center gap-6 shadow-sm mb-2 text-center md:text-left">
                             <div className="w-14 h-14 bg-rose-500 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg mx-auto md:mx-0"><Icons.Shopping /></div>
                             <div>
-                                <p className="text-rose-400 text-[10px] font-black uppercase tracking-widest mb-1">Gasto Diario del Mes</p>
+                                <p className="text-rose-400 text-[10px] font-black uppercase tracking-widest mb-1">Total Gastos Diarios</p>
                                 <p className="text-3xl md:text-4xl font-black text-rose-700 tracking-tight leading-none">{formatCurrency(stats.daily)}</p>
                             </div>
                         </div>
@@ -543,8 +544,8 @@
             const amountValue = parseFloat(item.amount) || 0;
             
             const itemDateObj = item.date ? new Date(item.date) : new Date();
-            const isCurrentMonth = navDate && navDate.getMonth() === today.getMonth() && navDate.getFullYear() === today.getFullYear();
-            const isPastMonth = navDate && navDate < new Date(today.getFullYear(), today.getMonth(), 1);
+            const isCurrentMonth = navDate && navDate.getUTCMonth() === today.getUTCMonth() && navDate.getUTCFullYear() === today.getUTCFullYear();
+            const isPastMonth = navDate < new Date(today.getUTCFullYear(), today.getUTCMonth(), 1);
             const isOverdue = item.type === 'recurring' && !item.paid && amountValue > 0 && ((isCurrentMonth && currentDay > item.dueDay) || isPastMonth);
 
             const saveEdit = () => {
@@ -584,7 +585,7 @@
                                                 {isOverdue ? "VENCIDO" : `Día ${item.dueDay || '---'}`}
                                             </span>
                                         )}
-                                        {item.type === 'daily' && <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{itemDateObj.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}</span>}
+                                        {item.type === 'daily' && <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{itemDateObj.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })}</span>}
                                     </div>
                                 </div>
                             )}
@@ -747,12 +748,12 @@
                 <div className="space-y-8 animate-fade-in pb-10">
                     <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-sm border border-slate-100 md:grid md:grid-cols-2 md:gap-12 items-center">
                         <div className="flex flex-col items-center mb-8 md:mb-0">
-                            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-8">Gastos por Categoría</h3>
-                            <div className="relative w-64 h-64 md:w-80 md:h-80">
+                            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-8 text-center">Gastos por Categoría</h3>
+                            <div className="relative w-64 h-64 md:w-80 md:h-80 mx-auto">
                                 <canvas ref={chartRef}></canvas>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
                                     <p className="text-[10px] font-black text-slate-400 uppercase">Mes Actual</p>
-                                    <p className="text-3xl font-black text-slate-900 tracking-tight leading-none">{formatCurrency(stats.totalSpent)}</p>
+                                    <p className="text-2xl font-black text-slate-900 tracking-tight leading-none">{formatCurrency(stats.totalSpent)}</p>
                                 </div>
                             </div>
                         </div>
@@ -763,7 +764,7 @@
                                 <div key={cat} className="space-y-2">
                                     <div className="flex justify-between items-center text-[11px] font-black uppercase">
                                         <span style={{ color: CHART_COLORS[idx % CHART_COLORS.length] }}>{cat}</span>
-                                        <span className="text-slate-900">{formatCurrency(amount)}</span>
+                                        <span className="text-slate-900 font-bold">{formatCurrency(amount)}</span>
                                     </div>
                                     <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                                         <div className="h-full transition-all duration-1000" style={{ width: `${(amount / (stats.totalSpent || 1)) * 100}%`, backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}></div>
@@ -777,7 +778,7 @@
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                             <div>
                                 <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 text-center md:text-left">Evolución Anual</h3>
-                                <h4 className="text-xl font-black text-slate-900 tracking-tight text-center md:text-left">Historial por Gasto Fijo</h4>
+                                <h4 className="text-xl font-black text-slate-900 tracking-tight text-center md:text-left">Historial Gastos Fijos</h4>
                             </div>
                             <select 
                                 value={selectedRecurringName} 
