@@ -113,27 +113,25 @@
             const [hideBalance, setHideBalance] = useState(true);
             const [authError, setAuthError] = useState(null);
 
-            // 1. Inicialización de Autenticación Segura (REGLA 3)
+            // 1. Inicialización de Autenticación con Manejo de Errores de Entorno
             useEffect(() => {
                 const initAuth = async () => {
                     try {
-                        // REGLA 3: Llamar a signInWithCustomToken PRIMERO si existe
+                        // REGLA 3: Custom Token primero
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                             await auth.signInWithCustomToken(__initial_auth_token);
-                        } else {
-                            // Solo intentar getRedirectResult en entornos HTTP/HTTPS
-                            if (window.location.protocol.startsWith('http')) {
-                                try {
-                                    const result = await auth.getRedirectResult();
-                                    if (result?.user) setUser(result.user);
-                                } catch (e) {
-                                    // Ignorar errores de redirección en entornos no soportados
-                                    console.log("Sesión de redirección no disponible");
-                                }
+                        } else if (window.location.protocol.startsWith('http')) {
+                            // Intentar capturar resultado de redirect solo si el protocolo es válido
+                            try {
+                                const result = await auth.getRedirectResult();
+                                if (result?.user) setUser(result.user);
+                            } catch (err) {
+                                console.log("Redirección no disponible en este inicio.");
                             }
                         }
                     } catch (e) {
                         console.error("Error Auth Inicial:", e);
+                        // No bloqueamos la app, dejamos que cargue el botón de login
                     }
                 };
 
@@ -145,9 +143,8 @@
                 return () => unsubscribe();
             }, []);
 
-            // 2. Suscripción a Datos (Solo si hay usuario autenticado)
+            // 2. Suscripción a Datos (Solo si hay usuario)
             useEffect(() => {
-                // Guard: Prevenir consultas si no hay usuario o si no estamos en entorno seguro
                 if (!user) {
                     setItems([]);
                     return;
@@ -163,7 +160,7 @@
                     });
                     return () => unsubscribe();
                 } catch (e) {
-                    console.error("Error al configurar onSnapshot:", e);
+                    console.error("Error en Snapshot:", e);
                 }
             }, [user]);
 
@@ -196,33 +193,33 @@
                 return { income, recPaid, recPending, daily, balance: income - recPaid - daily, totalSpent, spendRatio, upcomingExpenses };
             }, [currentMonthItems]);
 
-            const handleGoogleLogin = async (useRedirect = false) => {
+            const handleGoogleLogin = async (mode = 'popup') => {
                 const provider = new firebase.auth.GoogleAuthProvider();
                 setAuthError(null);
                 setLoading(true);
 
-                // Verificar protocolo antes de disparar login
-                if (!window.location.protocol.startsWith('http')) {
-                    setAuthError("El login manual solo está disponible en dominios HTTP/HTTPS. En el preview, usá el token automático.");
-                    setLoading(false);
-                    return;
-                }
-
                 try {
-                    if (useRedirect) {
+                    // Si falla el almacenamiento, intentamos persistencia en memoria
+                    try {
+                        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+                    } catch (e) {
+                        console.log("No se pudo establecer persistencia SESSION, usando defecto.");
+                    }
+
+                    if (mode === 'redirect') {
                         await auth.signInWithRedirect(provider);
+                    } else if (mode === 'anonymous') {
+                        await auth.signInAnonymously();
                     } else {
                         await auth.signInWithPopup(provider);
                     }
                 } catch (e) {
-                    console.error("Error Login:", e);
+                    console.error("Error en Login:", e);
                     setLoading(false);
-                    if (e.code === 'auth/popup-closed-by-user') {
-                        setAuthError("El login fue cancelado. Intentá de nuevo o usá el método alternativo.");
-                    } else if (e.code === 'auth/popup-blocked') {
-                        setAuthError("El navegador bloqueó la ventana. Por favor habilitala.");
-                    } else if (e.code === 'auth/operation-not-supported-in-this-environment') {
-                        setAuthError("Este entorno no soporta login manual. Probá abriendo la app directamente en su URL de GitHub Pages.");
+                    if (e.code === 'auth/operation-not-supported-in-this-environment') {
+                        setAuthError("Tu navegador (Chrome) está bloqueando el acceso al almacenamiento. Por favor, habilitá 'Cookies de terceros' en la configuración del sitio o usá el método de redirección.");
+                    } else if (e.code === 'auth/popup-closed-by-user') {
+                        setAuthError("Cerraste la ventana antes de terminar. Intentá de nuevo.");
                     } else {
                         setAuthError(`Error: ${e.message}`);
                     }
@@ -240,67 +237,11 @@
                 });
             };
 
-            const importPreviousMonth = async (overwrite = false) => {
+            const del = async (id) => {
                 if (!user) return;
-                const col = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions');
-                
-                const prevDate = new Date(navDate);
-                prevDate.setMonth(prevDate.getMonth() - 1);
-                const pm = prevDate.getMonth();
-                const py = prevDate.getFullYear();
-
-                const prevItems = items.filter(i => {
-                    const d = new Date(i.date);
-                    return d.getMonth() === pm && d.getFullYear() === py && (i.type === 'income' || i.type === 'recurring');
-                });
-
-                if (prevItems.length === 0) {
-                    alert("No hay registros fijos para copiar del mes anterior.");
-                    return;
+                if (confirm("¿Eliminar registro?")) {
+                    await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions').doc(id).delete();
                 }
-
-                if (confirm(overwrite ? "¿Reemplazar registros actuales con los del mes pasado?" : "¿Importar registros fijos?")) {
-                    if (overwrite) {
-                        const toDelete = currentMonthItems.filter(i => i.type === 'income' || i.type === 'recurring');
-                        for (const item of toDelete) await col.doc(item.id).delete();
-                    }
-                    for (const item of prevItems) {
-                        await add({
-                            name: item.name,
-                            amount: 0, 
-                            dueDay: item.dueDay || '',
-                            type: item.type,
-                            category: item.category || 'General',
-                            paid: item.type === 'income', 
-                            date: navDate.toISOString()
-                        });
-
-                        if (item.type === 'recurring' && item.paid && item.paymentType === 'partial') {
-                            const debt = (parseFloat(item.amount) || 0) - (parseFloat(item.paidAmount) || 0);
-                            if (debt > 0) {
-                                await add({
-                                    name: `Saldo pendiente: ${item.name}`,
-                                    amount: debt,
-                                    dueDay: item.dueDay || '',
-                                    type: 'recurring',
-                                    category: 'Tarjetas',
-                                    paid: false,
-                                    date: navDate.toISOString()
-                                });
-                            }
-                        }
-                    }
-                }
-            };
-
-            const toggle = async (item, pType = 'total', pAmount = null) => {
-                if (!user) return;
-                const isPaying = !item.paid;
-                await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions').doc(item.id).update({ 
-                    paid: isPaying,
-                    paymentType: isPaying ? pType : null,
-                    paidAmount: isPaying ? (pType === 'partial' ? pAmount : item.amount) : null
-                });
             };
 
             const updateField = async (id, field, value) => {
@@ -309,33 +250,30 @@
                 await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions').doc(id).update({ [field]: finalVal });
             };
 
-            const del = async (id) => {
-                if (!user) return;
-                if (confirm("¿Eliminar registro?")) {
-                    await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions').doc(id).delete();
-                }
-            };
-
             if (loading) return <div className="flex h-screen items-center justify-center bg-white"><div className="w-10 h-10 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div></div>;
 
             if (!user) return (
                 <div className="flex flex-col h-screen items-center justify-center bg-white p-8 text-center animate-fade-in">
                     <div className="bg-slate-900 text-white p-5 rounded-[2rem] mb-6 shadow-2xl shadow-slate-200"><Icons.Wallet /></div>
                     <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Platita</h1>
-                    <p className="text-slate-500 mb-8 max-w-xs mx-auto">Tus finanzas personales, bajo control y sincronizadas.</p>
+                    <p className="text-slate-500 mb-8 max-w-xs mx-auto">Tus finanzas, sincronizadas.</p>
                     
                     {authError && (
                         <div className="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-xs font-medium leading-relaxed">
                             {authError}
+                            <div className="mt-2 text-slate-400 uppercase text-[9px] font-black">Recomendación: Abrir GitHub Pages directamente.</div>
                         </div>
                     )}
 
                     <div className="flex flex-col gap-3 w-full max-w-sm">
-                        <button onClick={() => handleGoogleLogin(false)} className="bg-slate-900 text-white w-full py-5 rounded-[1.5rem] font-black text-lg flex items-center justify-center gap-3 active:scale-95 transition-all card-shadow">
+                        <button onClick={() => handleGoogleLogin('popup')} className="bg-slate-900 text-white w-full py-5 rounded-[1.5rem] font-black text-lg flex items-center justify-center gap-3 active:scale-95 transition-all card-shadow">
                             Ingresar con Google
                         </button>
-                        <button onClick={() => handleGoogleLogin(true)} className="text-slate-500 text-sm font-bold hover:text-slate-800 transition-colors py-2">
-                            ¿Problemas? Usar método alternativo
+                        <button onClick={() => handleGoogleLogin('redirect')} className="text-slate-600 text-sm font-bold border-2 border-slate-100 rounded-2xl py-3 hover:bg-slate-50">
+                            Usar Redirección (Más estable)
+                        </button>
+                        <button onClick={() => handleGoogleLogin('anonymous')} className="text-slate-400 text-[10px] font-black uppercase tracking-widest py-2">
+                            Entrar como invitado (Solo prueba)
                         </button>
                     </div>
                 </div>
@@ -376,19 +314,11 @@
                     </header>
 
                     <main className="p-4 md:p-6 space-y-6">
-                        {currentMonthItems.length === 0 && (
-                            <div className="bg-slate-900 p-8 rounded-[2rem] text-white flex flex-col items-center text-center shadow-xl md:max-w-2xl mx-auto">
-                                <div className="bg-white/10 p-3 rounded-full mb-3"><Icons.Copy /></div>
-                                <h3 className="text-lg font-black mb-1">Iniciá el mes</h3>
-                                <button onClick={() => importPreviousMonth(false)} className="bg-white text-slate-900 px-8 py-3 rounded-xl font-black text-xs active:scale-95 transition-all">Importar plantilla</button>
-                            </div>
-                        )}
-
                         <div className="max-w-3xl mx-auto space-y-6">
                             {view === 'dashboard' && <Summary stats={stats} />}
                             {view === 'analysis' && <AnalysisView items={items} currentMonthItems={currentMonthItems} stats={stats} navDate={navDate} />}
-                            {view === 'income' && <ListView title="Cobros e Ingresos" type="income" items={currentMonthItems.filter(i => i.type === 'income')} onAdd={add} onDelete={del} onUpdate={updateField} onSync={() => importPreviousMonth(true)} placeholder="Descripción" accent="emerald" />}
-                            {view === 'recurring' && <ListView title="Gastos Fijos" type="recurring" items={currentMonthItems.filter(i => i.type === 'recurring')} onAdd={add} onDelete={del} onUpdate={updateField} onToggle={toggle} onSync={() => importPreviousMonth(true)} placeholder="Descripción" accent="amber" showCheck showDueDay showCategories />}
+                            {view === 'income' && <ListView title="Cobros e Ingresos" type="income" items={currentMonthItems.filter(i => i.type === 'income')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Descripción" accent="emerald" />}
+                            {view === 'recurring' && <ListView title="Gastos Fijos" type="recurring" items={currentMonthItems.filter(i => i.type === 'recurring')} onAdd={add} onDelete={del} onUpdate={updateField} onToggle={(item, pType, pAmount) => toggle(item, pType, pAmount)} placeholder="Descripción" accent="amber" showCheck showDueDay showCategories />}
                             {view === 'daily' && <ListView title="Gastos Diarios" type="daily" items={currentMonthItems.filter(i => i.type === 'daily')} onAdd={add} onDelete={del} onUpdate={updateField} placeholder="Detalle" accent="rose" showCategories showDatePicker showMonthlyTotal stats={stats} />}
                         </div>
                     </main>
@@ -448,8 +378,8 @@
                 const cats = {};
                 currentMonthItems.forEach(i => {
                     if (i.type === 'income') return;
-                    const value = i.paymentType === 'partial' ? (parseFloat(i.paidAmount) || 0) : (parseFloat(i.amount) || 0);
-                    cats[i.category || 'General'] = (cats[i.category || 'General'] || 0) + value;
+                    const val = i.paymentType === 'partial' ? (parseFloat(i.paidAmount) || 0) : (parseFloat(i.amount) || 0);
+                    cats[i.category || 'General'] = (cats[i.category || 'General'] || 0) + val;
                 });
                 return Object.entries(cats).sort((a,b) => b[1] - a[1]);
             }, [currentMonthItems]);
@@ -463,9 +393,8 @@
                 yearItems.forEach(i => {
                     const month = new Date(i.date).getMonth();
                     const val = i.paymentType === 'partial' ? (parseFloat(i.paidAmount) || 0) : (parseFloat(i.amount) || 0);
-                    if (i.type === 'income') {
-                        monthsData[month].inc += parseFloat(i.amount) || 0;
-                    } else {
+                    if (i.type === 'income') monthsData[month].inc += parseFloat(i.amount) || 0;
+                    else {
                         monthsData[month].exp += val;
                         catTotals[i.category || 'General'] = (catTotals[i.category || 'General'] || 0) + val;
                     }
@@ -489,12 +418,7 @@
                                 { label: 'Salidas', data: annualStats.monthsData.map(d => d.exp), backgroundColor: '#f43f5e', borderRadius: 4 }
                             ]
                         },
-                        options: { 
-                            responsive: true, 
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
-                        }
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } } }
                     });
                 }
                 return () => { if (chartInstance.current) chartInstance.current.destroy(); };
@@ -551,7 +475,7 @@
             );
         };
 
-        const ListView = ({ title, type, items, onAdd, onDelete, onUpdate, onToggle, onSync, placeholder, accent, showCheck, showDueDay, showCategories, showDatePicker, showMonthlyTotal, stats }) => {
+        const ListView = ({ title, type, items, onAdd, onDelete, onUpdate, onToggle, placeholder, accent, showCheck, showDueDay, showCategories, showDatePicker, showMonthlyTotal, stats }) => {
             const [newName, setNewName] = useState('');
             const [newAmountStr, setNewAmountStr] = useState('');
             const [newDueDay, setNewDueDay] = useState('');
@@ -581,7 +505,7 @@
             return (
                 <div className="space-y-5 animate-fade-in pb-10">
                     {showMonthlyTotal && stats && (
-                        <div className="bg-rose-50 border border-rose-100 p-5 rounded-[2rem] flex items-center gap-4 card-shadow">
+                        <div className="bg-rose-50 border border-rose-100 p-5 rounded-[2rem] flex items-center gap-4 card-shadow mb-2">
                             <div className="w-10 h-10 bg-rose-500 text-white rounded-2xl flex items-center justify-center shrink-0 border border-rose-600 shadow-sm"><Icons.Shopping /></div>
                             <div>
                                 <p className="text-rose-400 text-[10px] font-black uppercase tracking-widest">Gastos Diarios del Mes</p>
@@ -591,10 +515,7 @@
                     )}
 
                     <div className="flex justify-between items-center ml-1">
-                        <div className="flex items-center gap-2">
-                            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{title}</h2>
-                            {onSync && <button onClick={onSync} className="p-1 text-slate-400 hover:text-slate-900"><Icons.Refresh /></button>}
-                        </div>
+                        <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{title}</h2>
                         <span className="text-[9px] font-black text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-100 uppercase">{items.length} regs.</span>
                     </div>
 
@@ -668,7 +589,7 @@
                                             <button onClick={() => onToggle(item, 'total')} className="p-3 rounded-2xl transition-all border-2 text-slate-800 hover:text-emerald-600 border-stone-100"><Icons.Check /></button>
                                             {isCC && <button onClick={() => setShowPartialInput(!showPartialInput)} className={`p-3 rounded-2xl transition-all border-2 ${showPartialInput ? 'bg-amber-50 text-amber-600 border-amber-300' : 'text-slate-800 border-stone-100'}`}>P</button>}
                                         </>
-                                    ) : <button onClick={() => onToggle(item)} className="p-3 rounded-2xl transition-all border-2 text-emerald-700 bg-emerald-50 border-emerald-500"><Icons.Check /></button>}
+                                    ) : <button onClick={() => onToggle(item)} className="p-3 rounded-2xl transition-all border-2 text-emerald-700 bg-emerald-100 border-emerald-500"><Icons.Check /></button>}
                                 </div>
                             )}
                             <button onClick={() => onDel(item.id)} className="p-3 text-slate-800 hover:text-rose-600 hover:bg-rose-50 border-2 border-stone-100 rounded-2xl transition-all shadow-sm"><Icons.Trash /></button>
