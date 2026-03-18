@@ -75,7 +75,6 @@
 
         const DEFAULT_CATEGORIES = ["Hogar", "Servicios", "Impuestos", "Salud", "Educación", "Tarjetas", "Ocio", "Comida", "General"];
         
-        // Mapeo para sugerencias automáticas de etiquetas
         const CATEGORY_SUGGESTIONS = {
             'comida': 'Comida', 'super': 'Comida', 'almuerzo': 'Comida', 'cena': 'Comida', 'carne': 'Comida', 'verdura': 'Comida', 'chino': 'Comida', 'kiosco': 'Comida', 'pan': 'Comida',
             'luz': 'Servicios', 'agua': 'Servicios', 'gas': 'Servicios', 'internet': 'Servicios', 'tel': 'Servicios', 'netflix': 'Ocio', 'spotify': 'Ocio',
@@ -127,6 +126,7 @@
             const [view, setView] = useState('dashboard');
             const [items, setItems] = useState([]);
             const [templates, setTemplates] = useState([]);
+            const [incomeTemplates, setIncomeTemplates] = useState([]);
             const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
             const [navDate, setNavDate] = useState(new Date());
             const [hideBalance, setHideBalance] = useState(true); 
@@ -156,11 +156,16 @@
                     setTemplates(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
                 });
 
+                const incTempRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('incomeTemplates');
+                const unsubIncTemp = incTempRef.onSnapshot(snap => {
+                    setIncomeTemplates(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                });
+
                 db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('settings').doc('categories').get().then(doc => {
                     if (doc.exists) setCategories([...DEFAULT_CATEGORIES, ...doc.data().custom]);
                 });
                 
-                return () => { unsubTrans(); unsubTemp(); };
+                return () => { unsubTrans(); unsubTemp(); unsubIncTemp(); };
             }, [user]);
 
             const stats = useMemo(() => {
@@ -222,10 +227,7 @@
                 if (!user) return;
                 const colRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions');
                 const finalDate = data.date ? data.date.split('T')[0] + 'T12:00:00Z' : new Date().toISOString();
-                
-                // Si es un gasto diario, se marca como pagado automáticamente
                 const isPaid = data.type === 'daily' ? true : data.paid;
-                
                 await colRef.add({
                     ...data,
                     paid: isPaid,
@@ -235,47 +237,50 @@
                 showToast("Registro agregado");
             };
 
-            const addTemplate = async (data) => {
+            const addTemplate = async (data, isIncome = false) => {
                 if (!user) return;
-                await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('recurringTemplates').add(data);
+                const collName = isIncome ? 'incomeTemplates' : 'recurringTemplates';
+                await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection(collName).add(data);
                 showToast("Plantilla guardada");
             };
 
-            const updateTemplate = async (id, data) => {
+            const updateTemplate = async (id, data, isIncome = false) => {
                 if (!user) return;
-                await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('recurringTemplates').doc(id).update(data);
+                const collName = isIncome ? 'incomeTemplates' : 'recurringTemplates';
+                await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection(collName).doc(id).update(data);
                 showToast("Plantilla actualizada");
             };
 
-            const removeTemplate = async (id) => {
+            const removeTemplate = async (id, isIncome = false) => {
                 if (!user) return;
-                await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('recurringTemplates').doc(id).delete();
+                const collName = isIncome ? 'incomeTemplates' : 'recurringTemplates';
+                await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection(collName).doc(id).delete();
                 showToast("Plantilla eliminada");
             };
 
-            const applyTemplates = async () => {
-                if (!user || templates.length === 0) return;
+            const applyTemplates = async (isIncome = false) => {
+                const targetList = isIncome ? incomeTemplates : templates;
+                if (!user || targetList.length === 0) return;
                 const batch = db.batch();
                 const colRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions');
+                const currentMonthStr = navDate.toISOString().split('T')[0].substring(0, 7); 
                 
-                const currentMonthStr = navDate.toISOString().split('T')[0].substring(0, 7); // YYYY-MM
-                
-                templates.forEach(t => {
+                targetList.forEach(t => {
                     const newDoc = colRef.doc();
-                    const targetDateStr = `${currentMonthStr}-${String(t.dueDay).padStart(2, '0')}T12:00:00Z`;
+                    const targetDateStr = `${currentMonthStr}-${String(t.dueDay || 1).padStart(2, '0')}T12:00:00Z`;
                     batch.set(newDoc, {
                         name: t.name,
                         amount: t.amount || 0,
-                        category: t.category,
-                        type: 'recurring',
-                        dueDay: t.dueDay,
+                        category: isIncome ? "Ingreso" : t.category,
+                        type: isIncome ? "income" : "recurring",
+                        dueDay: t.dueDay || 1,
                         paid: false,
                         date: targetDateStr,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 });
                 await batch.commit();
-                showToast("Gastos fijos aplicados");
+                showToast(isIncome ? "Ingresos aplicados" : "Gastos fijos aplicados");
             };
 
             const updateItem = async (id, data) => {
@@ -288,7 +293,7 @@
             };
 
             const toggleItem = async (item, pType = 'total', pAmount = 0) => {
-                if (!user || item.type === 'daily') return; // No se puede cambiar el estado de gastos diarios
+                if (!user || item.type === 'daily') return; 
                 const docRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions').doc(item.id);
                 if (item.paid) {
                     await docRef.update({ paid: false, paymentType: null, paidAmount: 0 });
@@ -386,14 +391,14 @@
                                     </div>
 
                                     <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-xl relative overflow-hidden flex flex-col items-center">
-                                        <button onClick={() => setHideBalance(!hideBalance)} className="absolute top-4 right-6 text-slate-500 hover:text-white p-2 transition-all">
+                                        <button onClick={() => setHideBalance(!hideBalance)} className="absolute top-4 right-6 text-white/50 hover:text-white p-2 transition-all">
                                             {hideBalance ? <Icons.EyeOff /> : <Icons.Eye />}
                                         </button>
-                                        <p className="text-slate-400 text-[10px] md:text-xs font-black uppercase tracking-widest mb-1">Saldo Cobrado Disponible</p>
-                                        <h2 className="text-4xl md:text-5xl font-black mb-6 tracking-tight leading-none">{hideBalance ? "$ ••••••" : formatCurrency(stats.balance)}</h2>
-                                        <div className="grid grid-cols-2 gap-8 border-t border-white/10 pt-6 w-full text-center">
-                                            <div><p className="text-slate-500 text-[10px] uppercase font-black mb-1">Ingresos</p><p className="text-emerald-400 font-black text-lg">{hideBalance ? "---" : formatCurrency(stats.income)}</p></div>
-                                            <div><p className="text-slate-500 text-[10px] uppercase font-black mb-1">Gastos</p><p className="text-rose-400 font-black text-lg">{hideBalance ? "---" : formatCurrency(stats.totalSpent)}</p></div>
+                                        <p className="text-amber-300 text-[10px] md:text-xs font-black uppercase tracking-widest mb-1">Saldo Cobrado Disponible</p>
+                                        <h2 className="text-4xl md:text-5xl font-black mb-6 tracking-tight leading-none text-white">{hideBalance ? "$ ••••••" : formatCurrency(stats.balance)}</h2>
+                                        <div className="grid grid-cols-2 gap-8 border-t border-white/20 pt-6 w-full text-center">
+                                            <div><p className="text-white/60 text-[10px] uppercase font-black mb-1">Ingresos</p><p className="text-emerald-400 font-black text-lg">{hideBalance ? "---" : formatCurrency(stats.income)}</p></div>
+                                            <div><p className="text-white/60 text-[10px] uppercase font-black mb-1">Gastos</p><p className="text-rose-400 font-black text-lg">{hideBalance ? "---" : formatCurrency(stats.totalSpent)}</p></div>
                                         </div>
                                     </div>
                                 </div>
@@ -407,8 +412,11 @@
                     <main className="main-container space-y-8">
                         {view === 'dashboard' && (
                             <div className="space-y-6">
-                                <div className="flex justify-center">
-                                    <button onClick={applyTemplates} className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl hover:bg-indigo-700 transition-all active:scale-95">
+                                <div className="flex justify-center gap-3 flex-wrap">
+                                    <button onClick={() => applyTemplates(true)} className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl hover:bg-emerald-700 transition-all active:scale-95">
+                                        <Icons.Plus /> Aplicar Ingresos
+                                    </button>
+                                    <button onClick={() => applyTemplates(false)} className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl hover:bg-indigo-700 transition-all active:scale-95">
                                         <Icons.Plus /> Aplicar gastos fijos
                                     </button>
                                 </div>
@@ -456,29 +464,33 @@
 
                         {view === 'settings' && (
                             <div className="space-y-8 animate-fade-in pb-10">
+                                {/* Plantillas Ingresos */}
                                 <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
-                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Plantillas de Gastos Fijos</h2>
-                                    <p className="text-xs text-slate-400 font-medium">Define tus gastos fijos recurrentes aquí. Luego podrás aplicarlos cada mes desde el Inicio.</p>
-                                    
-                                    <TemplateForm categories={categories} onAdd={addTemplate} />
-
+                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Plantillas de Ingresos</h2>
+                                    <p className="text-xs text-slate-400 font-medium">Define tus ingresos recurrentes aquí para aplicarlos mes a mes.</p>
+                                    <TemplateForm categories={categories} onAdd={(d) => addTemplate(d, true)} isIncome />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
-                                        {templates.map(t => (
-                                            <TemplateCard 
-                                                key={t.id} 
-                                                template={t} 
-                                                onUpdate={updateTemplate} 
-                                                onDelete={removeTemplate} 
-                                                categories={categories} 
-                                            />
+                                        {incomeTemplates.map(t => (
+                                            <TemplateCard key={t.id} template={t} onUpdate={(id, d) => updateTemplate(id, d, true)} onDelete={(id) => removeTemplate(id, true)} categories={categories} isIncome />
                                         ))}
                                     </div>
                                 </div>
 
+                                {/* Plantillas Gastos */}
                                 <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
-                                    <div className="flex justify-between items-start">
-                                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Etiquetas</h2>
+                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Plantillas de Gastos Fijos</h2>
+                                    <p className="text-xs text-slate-400 font-medium">Define tus gastos fijos recurrentes aquí.</p>
+                                    <TemplateForm categories={categories} onAdd={(d) => addTemplate(d, false)} />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                                        {templates.map(t => (
+                                            <TemplateCard key={t.id} template={t} onUpdate={(id, d) => updateTemplate(id, d, false)} onDelete={(id) => removeTemplate(id, false)} categories={categories} />
+                                        ))}
                                     </div>
+                                </div>
+
+                                {/* Etiquetas */}
+                                <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
+                                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Etiquetas</h2>
                                     <div className="space-y-4">
                                         <div className="flex flex-wrap gap-2">
                                             {categories.map(c => (
@@ -516,10 +528,10 @@
             );
         };
 
-        const TemplateForm = ({ categories, onAdd }) => {
+        const TemplateForm = ({ categories, onAdd, isIncome = false }) => {
             const [name, setName] = useState('');
             const [amount, setAmount] = useState('');
-            const [cat, setCat] = useState('General');
+            const [cat, setCat] = useState(isIncome ? 'Ingreso' : 'General');
             const [dueDay, setDueDay] = useState('1');
 
             const submit = (e) => {
@@ -532,23 +544,37 @@
             return (
                 <form onSubmit={submit} className="p-6 bg-slate-900 rounded-[2.5rem] shadow-xl space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input className="p-4 bg-white/10 text-white placeholder-white/30 rounded-2xl text-sm outline-none border border-white/5" placeholder="Nombre (ej. Alquiler)" value={name} onChange={e=>setName(e.target.value)} />
+                        <div className="flex flex-col gap-1">
+                            <label className="text-amber-300 text-[9px] font-black uppercase ml-1">Nombre</label>
+                            <input className="p-4 bg-white/10 text-white placeholder-white/40 rounded-2xl text-sm outline-none border border-white/5" placeholder="Ej. Sueldo" value={name} onChange={e=>setName(e.target.value)} />
+                        </div>
                         <div className="flex gap-2">
-                            <input inputmode="decimal" className="flex-1 p-4 bg-white/10 text-white placeholder-white/30 rounded-2xl text-sm outline-none border border-white/5" placeholder="Monto base" value={amount} onChange={e=>setAmount(e.target.value)} />
-                            <input type="number" min="1" max="31" className="w-20 p-4 bg-white/10 text-white rounded-2xl text-sm text-center outline-none border border-white/5" placeholder="Día" value={dueDay} onChange={e=>setDueDay(e.target.value)} />
+                            <div className="flex-1 flex flex-col gap-1">
+                                <label className="text-amber-300 text-[9px] font-black uppercase ml-1">Monto Base</label>
+                                <input inputmode="decimal" className="p-4 bg-white/10 text-white placeholder-white/40 rounded-2xl text-sm outline-none border border-white/5" placeholder="$ 0,00" value={amount} onChange={e=>setAmount(e.target.value)} />
+                            </div>
+                            <div className="w-20 flex flex-col gap-1">
+                                <label className="text-amber-300 text-[9px] font-black uppercase ml-1 text-center">Día</label>
+                                <input type="number" min="1" max="31" className="p-4 bg-white/10 text-white rounded-2xl text-sm text-center outline-none border border-white/5" value={dueDay} onChange={e=>setDueDay(e.target.value)} />
+                            </div>
                         </div>
                     </div>
                     <div className="flex flex-col md:flex-row gap-4 items-center">
-                        <select className="w-full md:w-auto p-4 bg-white/10 text-white rounded-2xl text-sm outline-none border border-white/5 cursor-pointer" value={cat} onChange={e=>setCat(e.target.value)}>
-                            {categories.map(c => <option key={c} value={c} className="text-slate-900">{c}</option>)}
-                        </select>
-                        <button className="w-full md:flex-1 bg-white text-slate-900 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-100 transition-all">Guardar Plantilla</button>
+                        {!isIncome && (
+                            <div className="w-full md:w-auto flex flex-col gap-1">
+                                <label className="text-amber-300 text-[9px] font-black uppercase ml-1">Categoría</label>
+                                <select className="p-4 bg-white/10 text-white rounded-2xl text-sm outline-none border border-white/5 cursor-pointer" value={cat} onChange={e=>setCat(e.target.value)}>
+                                    {categories.map(c => <option key={c} value={c} className="text-slate-900">{c}</option>)}
+                                </select>
+                            </div>
+                        )}
+                        <button className="w-full md:flex-1 bg-white text-slate-900 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-100 transition-all self-end">Guardar Plantilla</button>
                     </div>
                 </form>
             );
         };
 
-        const TemplateCard = ({ template, onUpdate, onDelete, categories }) => {
+        const TemplateCard = ({ template, onUpdate, onDelete, categories, isIncome = false }) => {
             const [isEditing, setIsEditing] = useState(false);
             const [editName, setEditName] = useState(template.name);
             const [editAmount, setEditAmount] = useState(template.amount);
@@ -568,14 +594,28 @@
             if (isEditing) {
                 return (
                     <div className="p-6 bg-slate-900 rounded-[2rem] shadow-xl space-y-4 animate-fade-in border border-white/10">
-                        <input className="w-full p-3 bg-white/10 text-white placeholder-white/30 rounded-xl text-xs outline-none border border-white/5" value={editName} onChange={e => setEditName(e.target.value)} />
-                        <div className="flex gap-2">
-                            <input inputmode="decimal" className="flex-1 p-3 bg-white/10 text-white placeholder-white/30 rounded-xl text-xs outline-none border border-white/5" value={editAmount} onChange={e => setEditAmount(e.target.value)} />
-                            <input type="number" min="1" max="31" className="w-16 p-3 bg-white/10 text-white rounded-xl text-xs text-center outline-none border border-white/5" value={editDueDay} onChange={e => setEditDueDay(e.target.value)} />
+                        <div className="flex flex-col gap-1">
+                            <label className="text-amber-300 text-[8px] font-black uppercase ml-1">Editar Nombre</label>
+                            <input className="w-full p-3 bg-white/10 text-white placeholder-white/30 rounded-xl text-xs outline-none border border-white/5" value={editName} onChange={e => setEditName(e.target.value)} />
                         </div>
-                        <select className="w-full p-3 bg-white/10 text-white rounded-xl text-xs outline-none border border-white/5" value={editCat} onChange={e => setEditCat(e.target.value)}>
-                            {categories.map(c => <option key={c} value={c} className="text-slate-900">{c}</option>)}
-                        </select>
+                        <div className="flex gap-2">
+                            <div className="flex-1 flex flex-col gap-1">
+                                <label className="text-amber-300 text-[8px] font-black uppercase ml-1">Monto</label>
+                                <input inputmode="decimal" className="p-3 bg-white/10 text-white rounded-xl text-xs outline-none border border-white/5" value={editAmount} onChange={e => setEditAmount(e.target.value)} />
+                            </div>
+                            <div className="w-16 flex flex-col gap-1">
+                                <label className="text-amber-300 text-[8px] font-black uppercase ml-1 text-center">Día</label>
+                                <input type="number" min="1" max="31" className="p-3 bg-white/10 text-white rounded-xl text-xs text-center outline-none border border-white/5" value={editDueDay} onChange={e => setEditDueDay(e.target.value)} />
+                            </div>
+                        </div>
+                        {!isIncome && (
+                            <div className="flex flex-col gap-1">
+                                <label className="text-amber-300 text-[8px] font-black uppercase ml-1">Etiqueta</label>
+                                <select className="w-full p-3 bg-white/10 text-white rounded-xl text-xs outline-none border border-white/5" value={editCat} onChange={e => setEditCat(e.target.value)}>
+                                    {categories.map(c => <option key={c} value={c} className="text-slate-900">{c}</option>)}
+                                </select>
+                            </div>
+                        )}
                         <div className="flex gap-2 pt-2">
                             <button onClick={save} className="flex-1 bg-white text-slate-900 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest">Guardar</button>
                             <button onClick={() => setIsEditing(false)} className="flex-1 bg-white/10 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest">Cancelar</button>
@@ -589,10 +629,10 @@
                     <div className="cursor-pointer flex-1" onClick={() => setIsEditing(true)}>
                         <div className="flex items-center gap-2 mb-1">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{template.name}</span>
-                            <span className="text-[8px] bg-white px-2 py-0.5 rounded-full border border-slate-200 text-slate-400 font-bold uppercase">{template.category}</span>
+                            {!isIncome && <span className="text-[8px] bg-white px-2 py-0.5 rounded-full border border-slate-200 text-slate-400 font-bold uppercase">{template.category}</span>}
                         </div>
                         <p className="text-lg font-black text-slate-900">{formatCurrency(template.amount)}</p>
-                        <p className="text-[9px] font-black text-amber-500 uppercase">Día {template.dueDay}</p>
+                        <p className="text-[9px] font-black text-amber-500 uppercase">Día {template.dueDay || 1}</p>
                     </div>
                     <div className="flex gap-1">
                         <button onClick={() => setIsEditing(true)} className="p-3 text-slate-300 hover:text-indigo-500 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"><Icons.Settings /></button>
@@ -630,7 +670,6 @@
 
             const handleDescriptionChange = (val) => {
                 setNewName(val);
-                // Lógica de sugerencia de etiqueta
                 const lowerVal = val.toLowerCase();
                 for (const [key, category] of Object.entries(CATEGORY_SUGGESTIONS)) {
                     if (lowerVal.includes(key)) {
@@ -649,7 +688,6 @@
                     type, 
                     paid: type === 'daily' ? true : false 
                 };
-                
                 if (type !== 'income') data.category = newCat;
                 else data.category = "Ingreso";
                 
@@ -751,13 +789,11 @@
             const itemDateObj = item.date ? new Date(item.date) : new Date();
             const isCurrentMonth = navDate && navDate.getUTCMonth() === today.getUTCMonth() && navDate.getUTCFullYear() === today.getUTCFullYear();
             const isPastMonth = navDate < new Date(today.getUTCFullYear(), today.getUTCMonth(), 1);
-            
-            // Los gastos diarios nunca están vencidos porque se registran al momento
             const isOverdue = item.type === 'recurring' && !item.paid && amountValue > 0 && ((isCurrentMonth && currentDay > item.dueDay) || isPastMonth);
 
             const saveEdit = () => {
                 const updates = { name: editName, amount: parseLocaleNumber(editAmount) };
-                if (item.type === 'recurring') updates.dueDay = parseInt(editDueDay) || 1;
+                if (item.type === 'recurring' || item.type === 'income') updates.dueDay = parseInt(editDueDay) || 1;
                 onUpdate(item.id, updates);
                 setIsEditing(false);
             };
@@ -771,7 +807,7 @@
                                     <input className="w-full text-[11px] font-black uppercase p-2 border-b border-slate-200 outline-none focus:border-slate-900" value={editName} onChange={e=>setEditName(e.target.value)} autoFocus />
                                     <div className="flex gap-2">
                                         <input inputmode="decimal" className="flex-1 text-xl font-black p-2 border-b border-slate-200 outline-none focus:border-slate-900" value={editAmount} onChange={e=>setEditAmount(e.target.value)} />
-                                        {item.type === 'recurring' && <input type="number" className="w-14 text-lg font-black p-2 border-b border-slate-200 outline-none focus:border-slate-900 text-center" value={editDueDay} onChange={e=>setEditDueDay(e.target.value)} />}
+                                        {(item.type === 'recurring' || item.type === 'income') && <input type="number" className="w-14 text-lg font-black p-2 border-b border-slate-200 outline-none focus:border-slate-900 text-center" value={editDueDay} onChange={e=>setEditDueDay(e.target.value)} />}
                                     </div>
                                     <div className="flex gap-2 pt-2">
                                         <button onClick={saveEdit} className="bg-slate-900 text-white px-3 py-1.5 rounded-xl text-[9px] font-black uppercase">Ok</button>
@@ -787,7 +823,7 @@
                                     </div>
                                     <p className="text-xl md:text-2xl font-black text-slate-900 tracking-tighter leading-tight">{formatCurrency(item.amount)}</p>
                                     <div className="flex gap-2 mt-2 flex-wrap">
-                                        {item.type === 'recurring' && <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${isOverdue ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-amber-50 text-amber-500 border-amber-100'}`}>{isOverdue ? "VENCIDO" : `Día ${item.dueDay || '---'}`}</span>}
+                                        {(item.type === 'recurring' || item.type === 'income') && <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${isOverdue ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-amber-50 text-amber-500 border-amber-100'}`}>{isOverdue ? "VENCIDO" : `Día ${item.dueDay || '---'}`}</span>}
                                         {item.type === 'daily' && <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{itemDateObj.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })}</span>}
                                         {item.type === 'income' && item.paid && <span className="text-[9px] font-black text-emerald-500 uppercase bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">Cobrado</span>}
                                     </div>
@@ -891,16 +927,6 @@
                                 </div>
                             ))}
                         </div>
-                    </div>
-                    <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                            <div><h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 text-center md:text-left">Evolución Anual</h3><h4 className="text-xl font-black text-slate-900 tracking-tight text-center md:text-left">Historial Gastos Fijos</h4></div>
-                            <select value={selectedRecurringName} onChange={e => setSelectedRecurringName(e.target.value)} className="w-full md:w-auto p-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-indigo-200 transition-all cursor-pointer">
-                                {recurringNames.length === 0 ? <option>Sin gastos fijos</option> : recurringNames.map(name => <option key={name} value={name}>{name}</option>)}
-                            </select>
-                        </div>
-                        <div className="relative h-72 w-full"><canvas ref={trendRef}></canvas></div>
-                        <div className="mt-6 flex justify-center"><p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Año: {navDate.getUTCFullYear()}</p></div>
                     </div>
                 </div>
             );
