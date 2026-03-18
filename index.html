@@ -44,10 +44,23 @@
     <div id="root"></div>
 
     <script type="text/babel">
+        // Definición de constantes
+        const DEFAULT_CATEGORIES = ["Hogar", "Servicios", "Impuestos", "Salud", "Educación", "Tarjetas", "Ocio", "Comida", "General"];
+        const CHART_COLORS = ['#10b981', '#f43f5e', '#f59e0b', '#6366f1', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899', '#14b8a6', '#3b82f6', '#a855f7', '#84cc16'];
+        const CATEGORY_SUGGESTIONS = {
+            'comida': 'Comida', 'super': 'Comida', 'almuerzo': 'Comida', 'cena': 'Comida', 'carne': 'Comida', 'verdura': 'Comida', 'chino': 'Comida', 'kiosco': 'Comida', 'pan': 'Comida',
+            'luz': 'Servicios', 'agua': 'Servicios', 'gas': 'Servicios', 'internet': 'Servicios', 'tel': 'Servicios', 'netflix': 'Ocio', 'spotify': 'Ocio',
+            'farmacia': 'Salud', 'remedio': 'Salud', 'osde': 'Salud', 'medico': 'Salud', 'dentista': 'Salud',
+            'nafta': 'General', 'uber': 'General', 'taxi': 'General', 'colectivo': 'General', 'sube': 'General',
+            'colegio': 'Educación', 'cuota': 'Educación', 'facu': 'Educación', 'libros': 'Educación',
+            'cine': 'Ocio', 'birra': 'Ocio', 'bar': 'Ocio', 'cerveza': 'Ocio', 'salida': 'Ocio',
+            'visa': 'Tarjetas', 'master': 'Tarjetas', 'naranja': 'Tarjetas', 'banco': 'Impuestos'
+        };
+
         const { useState, useEffect, useMemo, useRef } = React;
         const { createRoot } = ReactDOM;
 
-        // Firebase Setup
+        // Firebase Configuration
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyB_iAkA30kQKiavpJnB0zTpRXUr7aCzA7k",
             authDomain: "platita-3fcc5.firebaseapp.com",
@@ -61,18 +74,6 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'mi-app-finanzas-v1';
-
-        const DEFAULT_CATEGORIES = ["Hogar", "Servicios", "Impuestos", "Salud", "Educación", "Tarjetas", "Ocio", "Comida", "General"];
-        
-        const CATEGORY_SUGGESTIONS = {
-            'comida': 'Comida', 'super': 'Comida', 'almuerzo': 'Comida', 'cena': 'Comida', 'carne': 'Comida', 'verdura': 'Comida', 'chino': 'Comida', 'kiosco': 'Comida', 'pan': 'Comida',
-            'luz': 'Servicios', 'agua': 'Servicios', 'gas': 'Servicios', 'internet': 'Servicios', 'tel': 'Servicios', 'netflix': 'Ocio', 'spotify': 'Ocio',
-            'farmacia': 'Salud', 'remedio': 'Salud', 'osde': 'Salud', 'medico': 'Salud', 'dentista': 'Salud',
-            'nafta': 'General', 'uber': 'General', 'taxi': 'General', 'colectivo': 'General', 'sube': 'General',
-            'colegio': 'Educación', 'cuota': 'Educación', 'facu': 'Educación', 'libros': 'Educación',
-            'cine': 'Ocio', 'birra': 'Ocio', 'bar': 'Ocio', 'cerveza': 'Ocio', 'salida': 'Ocio',
-            'visa': 'Tarjetas', 'master': 'Tarjetas', 'naranja': 'Tarjetas', 'banco': 'Impuestos'
-        };
 
         const Icons = {
             Wallet: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>,
@@ -93,6 +94,16 @@
             ChevronDown: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
         };
 
+        const formatCurrency = (val) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(val || 0);
+
+        const parseLocaleNumber = (str) => {
+            if (typeof str === 'number') return str;
+            if (!str) return 0;
+            const clean = str.toString().replace(/\./g, '').replace(',', '.');
+            const num = parseFloat(clean);
+            return isNaN(num) ? 0 : num;
+        };
+
         const App = () => {
             const [user, setUser] = useState(null);
             const [loading, setLoading] = useState(true);
@@ -105,6 +116,10 @@
             const [hideBalance, setHideBalance] = useState(true); 
             const [toast, setToast] = useState({ show: false, msg: '' });
 
+            // Formulario de login
+            const [loginData, setLoginData] = useState({ email: '', password: '' });
+            const [authError, setAuthError] = useState(null);
+
             // Settings sections visibility
             const [minIncomeT, setMinIncomeT] = useState(true);
             const [minExpenseT, setMinExpenseT] = useState(true);
@@ -114,8 +129,21 @@
                 setTimeout(() => setToast({ show: false, msg: '' }), 3000);
             };
 
+            const handleLogin = (e) => {
+                e.preventDefault();
+                setLoading(true);
+                auth.signInWithEmailAndPassword(loginData.email, loginData.password)
+                    .catch((err) => {
+                        setAuthError("Email o contraseña incorrectos");
+                        setLoading(false);
+                    });
+            };
+
             useEffect(() => {
-                const unsubscribe = auth.onAuthStateChanged(u => { setUser(u); setLoading(false); });
+                const unsubscribe = auth.onAuthStateChanged(u => { 
+                    setUser(u); 
+                    setLoading(false); 
+                });
                 return () => unsubscribe();
             }, []);
 
@@ -125,7 +153,7 @@
                 
                 const unsubTrans = rootRef.collection('transactions').onSnapshot(snap => {
                     setItems(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                });
+                }, () => showToast("Error al cargar datos"));
                 
                 const unsubTemp = rootRef.collection('recurringTemplates').onSnapshot(snap => {
                     setTemplates(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -152,12 +180,11 @@
                 });
 
                 const incomeCobrado = currentMonthItems.filter(i => i.type === 'income' && i.paid).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
-                const incomePendiente = currentMonthItems.filter(i => i.type === 'income' && !i.paid).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
                 const recPaid = currentMonthItems.filter(i => i.type === 'recurring' && i.paid).reduce((a, c) => a + (c.paymentType === 'partial' ? (parseFloat(c.paidAmount) || 0) : (parseFloat(c.amount) || 0)), 0);
                 const recPending = currentMonthItems.filter(i => i.type === 'recurring' && !i.paid).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
                 const daily = currentMonthItems.filter(i => i.type === 'daily').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
                 
-                return { income: incomeCobrado, incomePendiente, recPaid, recPending, daily, balance: incomeCobrado - recPaid - daily, totalSpent: recPaid + daily, currentMonthItems };
+                return { income: incomeCobrado, recPaid, recPending, daily, balance: incomeCobrado - recPaid - daily, totalSpent: recPaid + daily, currentMonthItems };
             }, [items, navDate]);
 
             const addItem = async (data) => {
@@ -204,7 +231,28 @@
                     <div className="bg-slate-900 text-white p-5 rounded-[2.5rem] mb-6 shadow-2xl inline-block mx-auto"><Icons.Wallet /></div>
                     <h1 className="text-4xl font-black text-slate-900 mb-2 tracking-tighter leading-none">Platita</h1>
                     <p className="text-slate-500 mb-10 text-sm font-medium">Gestión inteligente de tus finanzas.</p>
-                    <button onClick={() => auth.signInAnonymously()} className="w-full max-w-xs bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-lg shadow-xl active:scale-95 transition-transform">Ingresar ahora</button>
+                    
+                    <form onSubmit={handleLogin} className="w-full max-w-xs space-y-4 mx-auto">
+                        <input 
+                            type="email" 
+                            required 
+                            className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none text-slate-800" 
+                            placeholder="Email" 
+                            value={loginData.email} 
+                            onChange={e=>setLoginData({...loginData, email: e.target.value})} 
+                        />
+                        <input 
+                            type="password" 
+                            required 
+                            className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none text-slate-800" 
+                            placeholder="Contraseña" 
+                            value={loginData.password} 
+                            onChange={e=>setLoginData({...loginData, password: e.target.value})} 
+                        />
+                        {authError && <p className="text-rose-500 text-xs font-bold">{authError}</p>}
+                        <button type="submit" className="w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-lg shadow-xl active:scale-95 transition-transform">Ingresar</button>
+                    </form>
+                    <button onClick={() => auth.signInAnonymously()} className="mt-6 text-slate-400 text-xs font-bold underline">O entrar como invitado</button>
                 </div>
             );
 
@@ -254,7 +302,7 @@
                     </header>
 
                     <main className="main-container space-y-8">
-                        {view === 'dashboard' && <DashboardView stats={stats} navDate={navDate} />}
+                        {view === 'dashboard' && <DashboardView stats={stats} />}
                         
                         {(view === 'income' || view === 'recurring' || view === 'daily') && (
                             <ListView 
@@ -264,7 +312,7 @@
                                 categories={categories}
                                 onAdd={addItem}
                                 onApplyTemplates={() => applyTemplates(view === 'income')}
-                                onDelete={id => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions').doc(id).delete()}
+                                userId={user.uid}
                                 accent={view === 'income' ? 'emerald' : view === 'recurring' ? 'amber' : 'rose'}
                                 stats={stats}
                                 navDate={navDate}
@@ -276,14 +324,14 @@
                                 <SettingsSection title="Plantillas de Ingresos" minimized={minIncomeT} setMinimized={setMinIncomeT}>
                                     <TemplateForm categories={categories} onAdd={(d) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('incomeTemplates').add(d)} isIncome />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                                        {incomeTemplates.map(t => <TemplateCard key={t.id} template={t} onUpdate={(id, d) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('incomeTemplates').doc(id).update(d)} onDelete={(id) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('incomeTemplates').doc(id).delete()} categories={categories} isIncome />)}
+                                        {incomeTemplates.map(t => <TemplateCard key={t.id} template={t} onDelete={(id) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('incomeTemplates').doc(id).delete()} isIncome />)}
                                     </div>
                                 </SettingsSection>
 
                                 <SettingsSection title="Plantillas de Gastos Fijos" minimized={minExpenseT} setMinimized={setMinExpenseT}>
                                     <TemplateForm categories={categories} onAdd={(d) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('recurringTemplates').add(d)} />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                                        {templates.map(t => <TemplateCard key={t.id} template={t} onUpdate={(id, d) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('recurringTemplates').doc(id).update(d)} onDelete={(id) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('recurringTemplates').doc(id).delete()} categories={categories} />)}
+                                        {templates.map(t => <TemplateCard key={t.id} template={t} onDelete={(id) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('recurringTemplates').doc(id).delete()} />)}
                                     </div>
                                 </SettingsSection>
 
@@ -291,7 +339,7 @@
                                     <h2 className="text-xl font-black text-slate-900 tracking-tight">Etiquetas</h2>
                                     <p className="text-xs text-slate-500 font-medium leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
                                         <strong className="text-slate-900 block mb-1 text-[10px] uppercase font-black tracking-widest">¿Para qué sirven las etiquetas?</strong>
-                                        Clasifican tus gastos para los reportes visuales de Análisis. El sistema sugiere etiquetas automáticamente según la descripción (ej: "Súper" sugiere "Comida").
+                                        Permiten clasificar tus registros para generar los reportes de Análisis. Además, el sistema sugiere categorías automáticamente mientras escribes (ej: "Luz" sugiere "Servicios").
                                     </p>
                                     <div className="flex flex-wrap gap-2">
                                         {categories.map(c => (
@@ -304,6 +352,13 @@
                                             </span>
                                         ))}
                                     </div>
+                                    <form onSubmit={e => { e.preventDefault(); const val = e.target.cat.value; if(val){ 
+                                        const nc = [...categories, val];
+                                        db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('settings').doc('categories').set({ custom: nc.filter(x => !DEFAULT_CATEGORIES.includes(x)) });
+                                    } e.target.reset(); }} className="flex gap-2 max-w-sm pt-2">
+                                        <input name="cat" className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none" placeholder="Nueva etiqueta..." />
+                                        <button className="bg-slate-900 text-white px-6 rounded-2xl font-black shadow-lg">+</button>
+                                    </form>
                                 </div>
                             </div>
                         )}
@@ -323,8 +378,7 @@
             );
         };
 
-        const DashboardView = ({ stats, navDate }) => {
-            const today = new Date();
+        const DashboardView = ({ stats }) => {
             const upcoming = stats.currentMonthItems
                 .filter(i => i.type === 'recurring' && !i.paid && (parseFloat(i.amount) > 0))
                 .sort((a,b) => (a.dueDay || 99) - (b.dueDay || 99))
@@ -337,7 +391,7 @@
                             <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><Icons.Calendar /></div>
                             <div className="flex-1">
                                 <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Pendientes Próximos</p>
-                                <p className="text-3xl font-black text-slate-900 tracking-tight leading-none">{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(stats.recPending)}</p>
+                                <p className="text-3xl font-black text-slate-900 tracking-tight leading-none">{formatCurrency(stats.recPending)}</p>
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -353,7 +407,7 @@
             );
         };
 
-        const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, onDelete, accent, stats, navDate }) => {
+        const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, userId, accent, stats, navDate }) => {
             const [newName, setNewName] = useState('');
             const [newAmount, setNewAmount] = useState('');
             const [newCat, setNewCat] = useState('General');
@@ -384,7 +438,7 @@
                             </div>
                             <div>
                                 <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Total {title}</p>
-                                <p className="text-3xl font-black leading-none">{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(type === 'income' ? stats.income : type === 'recurring' ? stats.recPaid + stats.recPending : stats.daily)}</p>
+                                <p className="text-3xl font-black leading-none">{formatCurrency(type === 'income' ? stats.income : type === 'recurring' ? stats.recPaid + stats.recPending : stats.daily)}</p>
                             </div>
                         </div>
                         {(type === 'income' || type === 'recurring') && (
@@ -406,9 +460,10 @@
                         <form onSubmit={e => { e.preventDefault(); if (!newName) return; onAdd({ name: newName, amount: parseLocaleNumber(newAmount), type, category: type === 'income' ? 'Ingreso' : newCat, dueDay: parseInt(newDueDay) || 1, date: type === 'daily' ? newDate : navDate.toISOString(), paid: false }); setNewName(''); setNewAmount(''); }} className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
                             <div className="flex flex-col md:flex-row gap-4">
                                 <input className="flex-[2] p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none" placeholder="Descripción" value={newName} onChange={e=>{
-                                    setNewName(e.target.value);
-                                    const lower = e.target.value.toLowerCase();
-                                    for (let k in CATEGORY_SUGGESTIONS) if (lower.includes(k)) setNewCat(CATEGORY_SUGGESTIONS[k]);
+                                    const val = e.target.value;
+                                    setNewName(val);
+                                    const lower = val.toLowerCase();
+                                    for (let k in CATEGORY_SUGGESTIONS) if (lower.includes(k)) { setNewCat(CATEGORY_SUGGESTIONS[k]); break; }
                                 }} />
                                 <div className="flex-1 flex gap-2">
                                     <input inputmode="decimal" className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black outline-none" placeholder="$ 0,00" value={newAmount} onChange={e=>setNewAmount(e.target.value)} />
@@ -429,21 +484,21 @@
 
                     <div className="desktop-grid space-y-4 md:space-y-0">
                         {filteredItems.map(item => (
-                            <ItemCard key={item.id} item={item} accent={accent} onDelete={() => onDelete(item.id)} onUpdate={(d) => {
-                                db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions').doc(item.id).update(d);
-                            }} />
+                            <ItemCard key={item.id} item={item} accent={accent} uid={userId} />
                         ))}
                     </div>
                 </div>
             );
         };
 
-        const ItemCard = ({ item, accent, onDelete, onUpdate }) => {
-            const today = new Date();
+        const ItemCard = ({ item, accent, uid }) => {
             const [partialVal, setPartialVal] = useState('');
             const [showPartial, setShowPartial] = useState(false);
             const isCC = item.name.toLowerCase().includes('visa') || item.name.toLowerCase().includes('master');
             
+            const handleUpdate = (d) => db.collection('artifacts').doc(appId).collection('users').doc(uid).collection('transactions').doc(item.id).update(d);
+            const handleDelete = () => db.collection('artifacts').doc(appId).collection('users').doc(uid).collection('transactions').doc(item.id).delete();
+
             return (
                 <div className={`bg-white p-5 rounded-[2.2rem] border-l-[10px] shadow-sm flex flex-col gap-4 border-${accent}-500 ${item.paid && item.type !== 'income' ? 'opacity-50' : ''}`}>
                     <div className="flex justify-between items-start">
@@ -452,24 +507,24 @@
                                 <span className="text-[10px] font-black text-slate-500 uppercase">{item.name}</span>
                                 <span className="text-[8px] bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 text-slate-400 font-bold uppercase">{item.category}</span>
                             </div>
-                            <p className="text-xl font-black text-slate-900">{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(item.amount)}</p>
+                            <p className="text-xl font-black text-slate-900">{formatCurrency(item.amount)}</p>
                             {item.type === 'recurring' && <p className="text-[9px] font-black text-amber-500 uppercase mt-1">Día {item.dueDay}</p>}
                         </div>
                         <div className="flex gap-2">
                             {item.type !== 'daily' && !item.paid && (
                                 <>
-                                    <button onClick={() => onUpdate({ paid: true, paidAmount: item.amount })} className="p-3 rounded-2xl border border-slate-100 text-slate-400 hover:text-emerald-500"><Icons.Check /></button>
+                                    <button onClick={() => handleUpdate({ paid: true, paidAmount: item.amount })} className="p-3 rounded-2xl border border-slate-100 text-slate-400 hover:text-emerald-500"><Icons.Check /></button>
                                     {isCC && <button onClick={() => setShowPartial(!showPartial)} className="p-3 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs">P</button>}
                                 </>
                             )}
-                            {item.paid && item.type !== 'daily' && <button onClick={() => onUpdate({ paid: false, paymentType: null })} className="p-3 rounded-2xl bg-emerald-500 text-white shadow-lg"><Icons.Check /></button>}
-                            <button onClick={onDelete} className="p-3 rounded-2xl border border-slate-100 text-slate-300 hover:text-rose-500"><Icons.Trash /></button>
+                            {item.paid && item.type !== 'daily' && <button onClick={() => handleUpdate({ paid: false, paymentType: null })} className="p-3 rounded-2xl bg-emerald-500 text-white shadow-lg"><Icons.Check /></button>}
+                            <button onClick={handleDelete} className="p-3 rounded-2xl border border-slate-100 text-slate-300 hover:text-rose-500"><Icons.Trash /></button>
                         </div>
                     </div>
                     {showPartial && (
-                        <div className="flex gap-2 p-3 bg-amber-50 rounded-2xl">
+                        <div className="flex gap-2 p-3 bg-amber-50 rounded-2xl animate-fade-in">
                             <input inputmode="decimal" className="flex-1 p-3 bg-white border border-amber-200 rounded-xl text-xs font-black outline-none" placeholder="Pago parcial..." value={partialVal} onChange={e=>setPartialVal(e.target.value)} />
-                            <button onClick={() => { onUpdate({ paid: true, paymentType: 'partial', paidAmount: parseLocaleNumber(partialVal) }); setShowPartial(false); }} className="bg-amber-500 text-white px-4 rounded-xl text-[10px] font-black uppercase">Ok</button>
+                            <button onClick={() => { handleUpdate({ paid: true, paymentType: 'partial', paidAmount: parseLocaleNumber(partialVal) }); setShowPartial(false); }} className="bg-amber-500 text-white px-4 rounded-xl text-[10px] font-black uppercase">Ok</button>
                         </div>
                     )}
                 </div>
@@ -520,24 +575,18 @@
             );
         };
 
-        const TemplateCard = ({ template, onUpdate, onDelete, categories, isIncome }) => {
-            const [isEdit, setIsEdit] = useState(false);
-            const [editName, setEditName] = useState(template.name);
-            const [editAmount, setEditAmount] = useState(template.amount);
-            
-            return (
-                <div className="p-5 bg-slate-50 border border-slate-100 rounded-[2rem] flex justify-between items-center group">
-                    <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[10px] font-black text-slate-400 uppercase">{template.name}</span>
-                            {!isIncome && <span className="text-[8px] bg-white px-2 py-0.5 rounded-full border border-slate-200 text-slate-400 font-bold uppercase">{template.category}</span>}
-                        </div>
-                        <p className="text-lg font-black text-slate-900">{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(template.amount)}</p>
+        const TemplateCard = ({ template, onDelete, isIncome }) => (
+            <div className="p-5 bg-slate-50 border border-slate-100 rounded-[2rem] flex justify-between items-center group shadow-sm">
+                <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-black text-slate-400 uppercase">{template.name}</span>
+                        {!isIncome && <span className="text-[8px] bg-white px-2 py-0.5 rounded-full border border-slate-200 text-slate-400 font-bold uppercase">{template.category}</span>}
                     </div>
-                    <button onClick={() => onDelete(template.id)} className="p-3 text-slate-300 hover:text-rose-500"><Icons.Trash /></button>
+                    <p className="text-lg font-black text-slate-900">{formatCurrency(template.amount)}</p>
                 </div>
-            );
-        };
+                <button onClick={() => onDelete(template.id)} className="p-3 text-slate-300 hover:text-rose-500"><Icons.Trash /></button>
+            </div>
+        );
 
         const AnalysisView = ({ currentMonthItems, stats, isSmall }) => {
             const chartRef = useRef(null);
@@ -550,7 +599,7 @@
             }, [currentMonthItems]);
 
             useEffect(() => {
-                if (chartRef.current) {
+                if (chartRef.current && typeof Chart !== 'undefined') {
                     if (chartInstance.current) chartInstance.current.destroy();
                     chartInstance.current = new Chart(chartRef.current.getContext('2d'), {
                         type: 'doughnut',
@@ -569,10 +618,10 @@
                     <div className="relative w-32 h-32 md:w-64 md:h-64 mx-auto"><canvas ref={chartRef}></canvas></div>
                     {!isSmall && (
                         <div className="mt-8 space-y-3">
-                            {byCategory.map(([cat, amount], idx) => (
+                            {byCategory.length === 0 ? <p className="text-sm text-slate-400 italic">Sin datos este mes.</p> : byCategory.map(([cat, amount], idx) => (
                                 <div key={cat} className="flex justify-between items-center text-[11px] font-black uppercase">
                                     <span style={{ color: CHART_COLORS[idx % CHART_COLORS.length] }}>{cat}</span>
-                                    <span className="text-slate-900">{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount)}</span>
+                                    <span className="text-slate-900 font-bold">{formatCurrency(amount)}</span>
                                 </div>
                             ))}
                         </div>
@@ -587,9 +636,14 @@
             </button>
         );
 
-        const container = document.getElementById('root');
-        const root = createRoot(container);
-        root.render(<App />);
+        // Bootstrap App
+        window.addEventListener('load', () => {
+            const container = document.getElementById('root');
+            if(container) {
+                const root = createRoot(container);
+                root.render(<App />);
+            }
+        });
     </script>
 </body>
 </html>
