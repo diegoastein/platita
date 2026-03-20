@@ -81,6 +81,7 @@
             Calendar: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
             Shopping: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>,
             Trash: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+            Edit: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
             Plus: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
             Check: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>,
             Logout: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>,
@@ -306,14 +307,31 @@
                                 <SettingsSection title="Plantillas de Ingresos" minimized={minIncomeT} setMinimized={setMinIncomeT}>
                                     <TemplateForm categories={categories} onAdd={(d) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('incomeTemplates').add(d)} isIncome />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                                        {incomeTemplates.map(t => <TemplateCard key={t.id} template={t} onDelete={(id) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('incomeTemplates').doc(id).delete()} isIncome />)}
+                                        {incomeTemplates.map(t => (
+                                            <TemplateCard 
+                                                key={t.id} 
+                                                template={t} 
+                                                categories={categories}
+                                                onDelete={(id) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('incomeTemplates').doc(id).delete()} 
+                                                onUpdate={(id, d) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('incomeTemplates').doc(id).update(d)}
+                                                isIncome 
+                                            />
+                                        ))}
                                     </div>
                                 </SettingsSection>
 
                                 <SettingsSection title="Plantillas de Gastos Fijos" minimized={minExpenseT} setMinimized={setMinExpenseT}>
                                     <TemplateForm categories={categories} onAdd={(d) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('recurringTemplates').add(d)} />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                                        {templates.map(t => <TemplateCard key={t.id} template={t} onDelete={(id) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('recurringTemplates').doc(id).delete()} />)}
+                                        {templates.map(t => (
+                                            <TemplateCard 
+                                                key={t.id} 
+                                                template={t} 
+                                                categories={categories}
+                                                onDelete={(id) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('recurringTemplates').doc(id).delete()} 
+                                                onUpdate={(id, d) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('recurringTemplates').doc(id).update(d)}
+                                            />
+                                        ))}
                                     </div>
                                 </SettingsSection>
 
@@ -458,20 +476,55 @@
 
                     <div className="desktop-grid space-y-4 md:space-y-0">
                         {filteredItems.map(item => (
-                            <ItemCard key={item.id} item={item} accent={accent} uid={userId} />
+                            <ItemCard key={item.id} item={item} accent={accent} uid={userId} categories={categories} />
                         ))}
                     </div>
                 </div>
             );
         };
 
-        const ItemCard = ({ item, accent, uid }) => {
+        const ItemCard = ({ item, accent, uid, categories }) => {
+            const [isEditing, setIsEditing] = useState(false);
+            const [editData, setEditData] = useState({ ...item });
             const [partialVal, setPartialVal] = useState('');
             const [showPartial, setShowPartial] = useState(false);
             const isCC = item.name.toLowerCase().includes('visa') || item.name.toLowerCase().includes('master');
             
             const handleUpdate = (d) => db.collection('artifacts').doc(appId).collection('users').doc(uid).collection('transactions').doc(item.id).update(d);
             const handleDelete = () => db.collection('artifacts').doc(appId).collection('users').doc(uid).collection('transactions').doc(item.id).delete();
+
+            const onSaveEdit = () => {
+                handleUpdate({
+                    ...editData,
+                    amount: parseLocaleNumber(editData.amount),
+                    dueDay: parseInt(editData.dueDay) || 1
+                });
+                setIsEditing(false);
+            };
+
+            if (isEditing) {
+                return (
+                    <div className={`bg-white p-5 rounded-[2.2rem] border-l-[10px] shadow-sm flex flex-col gap-4 border-${accent}-500 animate-fade-in`}>
+                        <div className="space-y-3">
+                            <input className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none" value={editData.name} onChange={e=>setEditData({...editData, name: e.target.value})} placeholder="Descripción" />
+                            <div className="flex gap-2">
+                                <input inputmode="decimal" className="flex-1 p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black outline-none" value={editData.amount} onChange={e=>setEditData({...editData, amount: e.target.value})} placeholder="Monto" />
+                                {item.type === 'recurring' && <input type="number" min="1" max="31" className="w-16 p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs text-center outline-none" value={editData.dueDay} onChange={e=>setEditData({...editData, dueDay: e.target.value})} />}
+                            </div>
+                            {item.type === 'daily' && <input type="date" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none" value={editData.date?.split('T')[0]} onChange={e=>setEditData({...editData, date: e.target.value + 'T12:00:00Z'})} />}
+                            {item.type !== 'income' && (
+                                <div className="flex flex-wrap gap-1">
+                                    {categories.map(c => <button key={c} onClick={()=>setEditData({...editData, category: c})} className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${editData.category === c ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-400'}`}>{c}</button>)}
+                                </div>
+                            )}
+                            <div className="flex gap-2 pt-2">
+                                <button onClick={onSaveEdit} className="flex-1 bg-slate-900 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest">Guardar</button>
+                                <button onClick={()=>setIsEditing(false)} className="px-6 border border-slate-200 text-slate-400 py-3 rounded-xl text-[10px] font-black uppercase">X</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
 
             return (
                 <div className={`bg-white p-5 rounded-[2.2rem] border-l-[10px] shadow-sm flex flex-col gap-4 border-${accent}-500 ${item.paid && item.type !== 'income' ? 'opacity-50' : ''}`}>
@@ -483,16 +536,19 @@
                             </div>
                             <p className="text-xl font-black text-slate-900">{formatCurrency(item.amount)}</p>
                             {item.type === 'recurring' && <p className="text-[9px] font-black text-amber-500 uppercase mt-1">Día {item.dueDay}</p>}
+                            {item.type === 'daily' && <p className="text-[9px] font-black text-slate-400 uppercase mt-1">{new Date(item.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</p>}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 shrink-0">
                             {item.type !== 'daily' && !item.paid && (
                                 <>
-                                    <button onClick={() => handleUpdate({ paid: true, paidAmount: item.amount })} className="p-3 rounded-2xl border border-slate-100 text-slate-400 hover:text-emerald-500"><Icons.Check /></button>
-                                    {isCC && <button onClick={() => setShowPartial(!showPartial)} className="p-3 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs">P</button>}
+                                    <button onClick={() => handleUpdate({ paid: true, paidAmount: item.amount })} className="p-3 rounded-2xl border border-slate-100 text-slate-400 hover:text-emerald-500 transition-all"><Icons.Check /></button>
+                                    {isCC && <button onClick={() => setShowPartial(!showPartial)} className="p-3 rounded-2xl border border-slate-100 text-slate-400 font-black text-xs hover:bg-amber-50">P</button>}
                                 </>
                             )}
                             {item.paid && item.type !== 'daily' && <button onClick={() => handleUpdate({ paid: false, paymentType: null })} className="p-3 rounded-2xl bg-emerald-500 text-white shadow-lg"><Icons.Check /></button>}
-                            <button onClick={handleDelete} className="p-3 rounded-2xl border border-slate-100 text-slate-300 hover:text-rose-500"><Icons.Trash /></button>
+                            
+                            <button onClick={() => setIsEditing(true)} className="p-3 rounded-2xl border border-slate-100 text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 transition-all"><Icons.Edit /></button>
+                            <button onClick={handleDelete} className="p-3 rounded-2xl border border-slate-100 text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all"><Icons.Trash /></button>
                         </div>
                     </div>
                     {showPartial && (
@@ -549,18 +605,57 @@
             );
         };
 
-        const TemplateCard = ({ template, onDelete, isIncome }) => (
-            <div className="p-5 bg-slate-50 border border-slate-100 rounded-[2rem] flex justify-between items-center group shadow-sm">
-                <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-black text-slate-400 uppercase">{template.name}</span>
-                        {!isIncome && <span className="text-[8px] bg-white px-2 py-0.5 rounded-full border border-slate-200 text-slate-400 font-bold uppercase">{template.category}</span>}
+        const TemplateCard = ({ template, onDelete, onUpdate, categories, isIncome }) => {
+            const [isEditing, setIsEditing] = useState(false);
+            const [editData, setEditData] = useState({ ...template });
+
+            const onSave = () => {
+                onUpdate(template.id, {
+                    ...editData,
+                    amount: parseLocaleNumber(editData.amount),
+                    dueDay: parseInt(editData.dueDay) || 1
+                });
+                setIsEditing(false);
+            };
+
+            if (isEditing) {
+                return (
+                    <div className="p-5 bg-slate-900 border border-white/5 rounded-[2rem] shadow-xl space-y-3 animate-fade-in">
+                        <input className="w-full p-3 bg-white/10 text-white rounded-xl text-xs outline-none border border-white/10" value={editData.name} onChange={e=>setEditData({...editData, name: e.target.value})} />
+                        <div className="flex gap-2">
+                            <input inputmode="decimal" className="flex-1 p-3 bg-white/10 text-white rounded-xl text-xs font-black outline-none border border-white/10" value={editData.amount} onChange={e=>setEditData({...editData, amount: e.target.value})} />
+                            <input type="number" min="1" max="31" className="w-16 p-3 bg-white/10 text-white rounded-xl text-xs text-center outline-none border border-white/10" value={editData.dueDay} onChange={e=>setEditData({...editData, dueDay: e.target.value})} />
+                        </div>
+                        {!isIncome && (
+                            <div className="flex flex-wrap gap-1">
+                                {categories.map(c => <button key={c} onClick={()=>setEditData({...editData, category: c})} className={`px-2 py-1 rounded-full text-[7px] font-black uppercase border ${editData.category === c ? 'bg-amber-400 text-slate-900' : 'bg-white/5 text-white/60'}`}>{c}</button>)}
+                            </div>
+                        )}
+                        <div className="flex gap-2 pt-2">
+                            <button onClick={onSave} className="flex-1 bg-white text-slate-900 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest">Guardar</button>
+                            <button onClick={()=>setIsEditing(false)} className="px-4 border border-white/20 text-white/40 py-2.5 rounded-xl text-[9px] font-black uppercase">X</button>
+                        </div>
                     </div>
-                    <p className="text-lg font-black text-slate-900">{formatCurrency(template.amount)}</p>
+                );
+            }
+
+            return (
+                <div className="p-5 bg-slate-50 border border-slate-100 rounded-[2rem] flex justify-between items-center group shadow-sm transition-all hover:border-slate-300">
+                    <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-black text-slate-400 uppercase">{template.name}</span>
+                            {!isIncome && <span className="text-[8px] bg-white px-2 py-0.5 rounded-full border border-slate-200 text-slate-400 font-bold uppercase">{template.category}</span>}
+                        </div>
+                        <p className="text-lg font-black text-slate-900">{formatCurrency(template.amount)}</p>
+                        <p className="text-[8px] text-amber-500 font-black uppercase tracking-tighter">Día de cobro/pago: {template.dueDay}</p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                        <button onClick={() => setIsEditing(true)} className="p-3 text-slate-300 hover:text-indigo-500"><Icons.Edit /></button>
+                        <button onClick={() => onDelete(template.id)} className="p-3 text-slate-300 hover:text-rose-500"><Icons.Trash /></button>
+                    </div>
                 </div>
-                <button onClick={() => onDelete(template.id)} className="p-3 text-slate-300 hover:text-rose-500"><Icons.Trash /></button>
-            </div>
-        );
+            );
+        };
 
         const AnalysisView = ({ currentMonthItems, stats, items, navDate, isSmall }) => {
             const chartRef = useRef(null);
