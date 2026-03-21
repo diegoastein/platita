@@ -451,6 +451,12 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Total {title}</p>
             <p className="text-3xl font-black leading-none">{formatCurrency(type === 'income' ? stats.income : type === 'recurring' ? stats.recPaid + stats.recPending : stats.daily)}</p>
+            {type === 'income' && stats.incomePending > 0 && (
+              <p className="text-emerald-500 text-[11px] font-semibold mt-1 flex items-center gap-1.5 opacity-70">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                {formatCurrency(stats.incomePending)} por cobrar
+              </p>
+            )}
           </div>
         </div>
         {(type === 'income' || type === 'recurring') && (
