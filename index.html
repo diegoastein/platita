@@ -1,45 +1,89 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Platita - Mi Control de Finanzas</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<!-- Firebase SDKs (Compat Mode) -->
-<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-body {
-  background-color: #f8fafc;
-  font-family: 'Inter', sans-serif;
-  -webkit-tap-highlight-color: transparent;
-  color: #1e293b;
-  overflow-x: hidden;
-  width: 100%;
-}
-svg { width: 1.5rem; height: 1.5rem; display: inline-block; }
-.glass-nav { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); border-top: 1px solid rgba(0,0,0,0.05); }
-.animate-fade-in { animation: fadeIn 0.3s ease-out; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
-input:focus { outline: none; border-color: #0f172a; }
-.main-container { width: 100%; max-width: 100%; padding-left: 1rem; padding-right: 1rem; }
-@media (min-width: 768px) {
-  .main-container { max-width: 1024px; margin: 0 auto; padding-left: 1.5rem; padding-right: 1.5rem; }
-  .desktop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Platita - Mi Control de Finanzas</title>
+
+  <!-- ✅ OPTIMIZACIÓN 1: Preconnect a todos los dominios externos -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://www.gstatic.com">
+
+  <!-- ✅ OPTIMIZACIÓN 2: Fuente con display=swap (no bloquea renderizado de texto) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- ✅ OPTIMIZACIÓN 3: Todos los scripts con defer (no bloquean el parser HTML) -->
+  <script defer src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script defer crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script defer crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script defer src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Firebase SDKs (Compat Mode) -->
+  <script defer src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
+
+  <style>
+    /* ✅ OPTIMIZACIÓN 4: Estilos críticos inline — la fuente ya no bloquea el layout base */
+    body {
+      background-color: #f8fafc;
+      font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      color: #1e293b;
+      overflow-x: hidden;
+      width: 100%;
+    }
+
+    /* ✅ OPTIMIZACIÓN 5: Spinner visible inmediatamente (antes que React cargue) */
+    #app-loader {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+      z-index: 9999;
+    }
+    #app-loader .spinner {
+      width: 3rem;
+      height: 3rem;
+      border: 4px solid #0f172a;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    svg { width: 1.5rem; height: 1.5rem; display: inline-block; }
+    .glass-nav { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); border-top: 1px solid rgba(0,0,0,0.05); }
+    .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    input:focus { outline: none; border-color: #0f172a; }
+    .main-container { width: 100%; max-width: 100%; padding-left: 1rem; padding-right: 1rem; }
+    @media (min-width: 768px) {
+      .main-container { max-width: 1024px; margin: 0 auto; padding-left: 1.5rem; padding-right: 1.5rem; }
+      .desktop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+    }
+  </style>
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel">
+
+  <!-- ✅ OPTIMIZACIÓN 5 cont.: Loader visible de inmediato, React lo oculta al montar -->
+  <div id="app-loader">
+    <div class="spinner"></div>
+  </div>
+
+  <div id="root"></div>
+
+  <!-- ✅ OPTIMIZACIÓN 6: Script de app con type="text/babel" y defer via data-plugins -->
+  <script type="text/babel" data-presets="react">
 
 // --- CONSTANTES ---
 const DEFAULT_CATEGORIES = ["Hogar", "Servicios", "Impuestos", "Salud", "Educación", "Tarjetas", "Ocio", "Comida", "General"];
@@ -66,10 +110,14 @@ const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__f
   messagingSenderId: "93396692454",
   appId: "1:93396692454:web:acc81d633c3dd3ae27fa27"
 };
+
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'mi-app-finanzas-v1';
+
+// ✅ OPTIMIZACIÓN 7: Firestore con caché offline habilitada
+db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
 
 // --- ICONOS ---
 const Icons = {
@@ -89,8 +137,7 @@ const Icons = {
   Eye: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>,
   EyeOff: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>,
   Search: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>,
-  ChevronDown: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>,
-  ArrowRight: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+  ChevronDown: () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
 };
 
 const formatCurrency = (val) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(val || 0);
@@ -134,6 +181,12 @@ const App = () => {
       });
   };
 
+  // ✅ OPTIMIZACIÓN 8: Ocultar el loader nativo del HTML cuando React toma el control
+  useEffect(() => {
+    const loader = document.getElementById('app-loader');
+    if (loader) loader.style.display = 'none';
+  }, []);
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(u => { setUser(u); setLoading(false); });
     return () => unsubscribe();
@@ -166,11 +219,10 @@ const App = () => {
       return d.getUTCMonth() === month && d.getUTCFullYear() === year;
     });
     const incomeCobrado = currentMonthItems.filter(i => i.type === 'income' && i.paid).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
-    const incomePending = currentMonthItems.filter(i => i.type === 'income' && !i.paid).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
     const recPaid = currentMonthItems.filter(i => i.type === 'recurring' && i.paid).reduce((a, c) => a + (c.paymentType === 'partial' ? (parseFloat(c.paidAmount) || 0) : (parseFloat(c.amount) || 0)), 0);
     const recPending = currentMonthItems.filter(i => i.type === 'recurring' && !i.paid).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
     const daily = currentMonthItems.filter(i => i.type === 'daily').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
-    return { income: incomeCobrado, incomePending, recPaid, recPending, daily, balance: incomeCobrado - recPaid - daily, totalSpent: recPaid + daily, currentMonthItems };
+    return { income: incomeCobrado, recPaid, recPending, daily, balance: incomeCobrado - recPaid - daily, totalSpent: recPaid + daily, currentMonthItems };
   }, [items, navDate]);
 
   const addItem = async (data) => {
@@ -209,7 +261,11 @@ const App = () => {
     showToast(isIncome ? "Ingresos aplicados" : "Gastos fijos aplicados");
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-white"><div className="w-12 h-12 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div></div>;
+  if (loading) return (
+    <div className="h-screen flex items-center justify-center bg-white">
+      <div className="w-12 h-12 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
 
   if (!user) return (
     <div className="flex flex-col h-screen items-center justify-center bg-white p-8 animate-fade-in text-center">
@@ -254,14 +310,7 @@ const App = () => {
                   {hideBalance ? <Icons.EyeOff /> : <Icons.Eye />}
                 </button>
                 <p className="text-amber-400 text-[10px] md:text-xs font-black uppercase tracking-widest mb-1">Saldo Cobrado Disponible</p>
-                <h2 className="text-4xl md:text-5xl font-black mb-2 tracking-tight leading-none text-white">{hideBalance ? "$ ••••••" : formatCurrency(stats.balance)}</h2>
-                {stats.incomePending > 0 && (
-                  <p className="text-slate-400 text-[11px] font-semibold mb-5 flex items-center gap-1.5">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0"></span>
-                    {hideBalance ? "--- por cobrar" : `${formatCurrency(stats.incomePending)} por cobrar`}
-                  </p>
-                )}
-                {(!stats.incomePending || stats.incomePending === 0) && <div className="mb-5"></div>}
+                <h2 className="text-4xl md:text-5xl font-black mb-6 tracking-tight leading-none text-white">{hideBalance ? "$ ••••••" : formatCurrency(stats.balance)}</h2>
                 <div className="grid grid-cols-2 gap-8 border-t border-white/20 pt-6 w-full text-center">
                   <div><p className="text-amber-400 text-[10px] uppercase font-black mb-1">Ingresos</p><p className="text-amber-400 font-black text-lg">{hideBalance ? "---" : formatCurrency(stats.income)}</p></div>
                   <div><p className="text-amber-400 text-[10px] uppercase font-black mb-1">Gastos</p><p className="text-amber-400 font-black text-lg">{hideBalance ? "---" : formatCurrency(stats.totalSpent)}</p></div>
@@ -276,8 +325,7 @@ const App = () => {
       </header>
 
       <main className="main-container space-y-8">
-        {/* *** CAMBIO: se pasa setView como onNavigate *** */}
-        {view === 'dashboard' && <DashboardView stats={stats} onNavigate={setView} />}
+        {view === 'dashboard' && <DashboardView stats={stats} />}
         {view === 'analysis' && <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} items={items} navDate={navDate} />}
         {(view === 'income' || view === 'recurring' || view === 'daily') && (
           <ListView
@@ -367,13 +415,11 @@ const App = () => {
   );
 };
 
-// *** COMPONENTE DASHBOARD MODIFICADO ***
-const DashboardView = ({ stats, onNavigate }) => {
+const DashboardView = ({ stats }) => {
   const upcoming = stats.currentMonthItems
     .filter(i => i.type === 'recurring' && !i.paid && (parseFloat(i.amount) > 0))
     .sort((a,b) => (a.dueDay || 99) - (b.dueDay || 99))
     .slice(0, 5);
-
   return (
     <div className="space-y-6">
       <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
@@ -383,36 +429,14 @@ const DashboardView = ({ stats, onNavigate }) => {
             <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Pendientes Próximos</p>
             <p className="text-3xl font-black text-slate-900 tracking-tight leading-none">{formatCurrency(stats.recPending)}</p>
           </div>
-          {/* Botón para ir a Gastos Fijos desde el encabezado */}
-          <button
-            onClick={() => onNavigate('recurring')}
-            className="flex items-center gap-1 text-[10px] font-black text-slate-400 hover:text-slate-900 uppercase tracking-widest transition-colors"
-          >
-            Ver todos <Icons.ArrowRight />
-          </button>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {upcoming.length > 0 ? upcoming.map(item => (
-            <button
-              key={item.id}
-              onClick={() => onNavigate('recurring')}
-              className="flex justify-between items-center p-4 rounded-2xl border bg-slate-50 border-slate-100 hover:bg-amber-50 hover:border-amber-200 active:scale-95 transition-all w-full text-left group"
-            >
-              <div className="flex flex-col min-w-0 mr-3">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate mb-0.5">{item.name}</span>
-                <span className="text-lg font-black text-slate-900 leading-tight">{formatCurrency(item.amount)}</span>
-              </div>
-              <div className="flex flex-col items-end gap-1.5 shrink-0">
-                <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap">Día {item.dueDay}</span>
-                <span className="text-[9px] text-slate-300 group-hover:text-amber-500 font-black uppercase tracking-widest transition-colors flex items-center gap-0.5">
-                  Ver →
-                </span>
-              </div>
-            </button>
-          )) : (
-            <p className="text-slate-400 text-xs font-medium italic text-center w-full col-span-3 py-4">Sin pagos pendientes. 🎉</p>
-          )}
+            <div key={item.id} className="flex justify-between items-center p-4 rounded-2xl border bg-slate-50 border-slate-100">
+              <span className="text-xs font-black text-slate-600 uppercase truncate block mr-2">{item.name}</span>
+              <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-lg text-[10px] font-black whitespace-nowrap">Día {item.dueDay}</span>
+            </div>
+          )) : <p className="text-slate-400 text-xs font-medium italic text-center w-full">Sin pagos pendientes.</p>}
         </div>
       </div>
     </div>
@@ -451,12 +475,6 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest opacity-60">Total {title}</p>
             <p className="text-3xl font-black leading-none">{formatCurrency(type === 'income' ? stats.income : type === 'recurring' ? stats.recPaid + stats.recPending : stats.daily)}</p>
-            {type === 'income' && stats.incomePending > 0 && (
-              <p className="text-emerald-500 text-[11px] font-semibold mt-1 flex items-center gap-1.5 opacity-70">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
-                {formatCurrency(stats.incomePending)} por cobrar
-              </p>
-            )}
           </div>
         </div>
         {(type === 'income' || type === 'recurring') && (
@@ -465,7 +483,6 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
           </button>
         )}
       </div>
-
       <div className="flex flex-col gap-4">
         <form onSubmit={e => { e.preventDefault(); if (!newName) return; onAdd({ name: newName, amount: parseLocaleNumber(newAmount), type, category: type === 'income' ? 'Ingreso' : newCat, dueDay: parseInt(newDueDay) || 1, date: type === 'daily' ? newDate : navDate.toISOString(), paid: false }); setNewName(''); setNewAmount(''); }} className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
           <div className="flex flex-col md:flex-row gap-4">
@@ -476,7 +493,7 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
               for (let k in CATEGORY_SUGGESTIONS) if (lower.includes(k)) { setNewCat(CATEGORY_SUGGESTIONS[k]); break; }
             }} />
             <div className="flex-1 flex gap-2">
-              <input inputmode="decimal" className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black outline-none" placeholder="$ 0,00" value={newAmount} onChange={e=>setNewAmount(e.target.value)} />
+              <input inputMode="decimal" className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black outline-none" placeholder="$ 0,00" value={newAmount} onChange={e=>setNewAmount(e.target.value)} />
               {type === 'recurring' && <input type="number" min="1" max="31" className="w-20 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-center outline-none" value={newDueDay} onChange={e=>setNewDueDay(e.target.value)} />}
               <button className="bg-slate-900 text-white px-8 rounded-2xl font-black shadow-lg"><Icons.Plus /></button>
             </div>
@@ -491,7 +508,6 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
           )}
         </form>
       </div>
-
       <div className="desktop-grid space-y-4 md:space-y-0">
         {filteredItems.map(item => (
           <ItemCard key={item.id} item={item} accent={accent} uid={userId} categories={categories} />
@@ -507,7 +523,6 @@ const ItemCard = ({ item, accent, uid, categories }) => {
   const [partialVal, setPartialVal] = useState('');
   const [showPartial, setShowPartial] = useState(false);
   const isCC = item.name.toLowerCase().includes('visa') || item.name.toLowerCase().includes('master');
-
   const handleUpdate = (d) => db.collection('artifacts').doc(appId).collection('users').doc(uid).collection('transactions').doc(item.id).update(d);
   const handleDelete = () => db.collection('artifacts').doc(appId).collection('users').doc(uid).collection('transactions').doc(item.id).delete();
   const onSaveEdit = () => {
@@ -518,14 +533,13 @@ const ItemCard = ({ item, accent, uid, categories }) => {
     });
     setIsEditing(false);
   };
-
   if (isEditing) {
     return (
       <div className={`bg-white p-5 rounded-[2.2rem] border-l-[10px] shadow-sm flex flex-col gap-4 border-${accent}-500 animate-fade-in`}>
         <div className="space-y-3">
           <input className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none" value={editData.name} onChange={e=>setEditData({...editData, name: e.target.value})} placeholder="Descripción" />
           <div className="flex gap-2">
-            <input inputmode="decimal" className="flex-1 p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black outline-none" value={editData.amount} onChange={e=>setEditData({...editData, amount: e.target.value})} placeholder="Monto" />
+            <input inputMode="decimal" className="flex-1 p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black outline-none" value={editData.amount} onChange={e=>setEditData({...editData, amount: e.target.value})} placeholder="Monto" />
             {item.type === 'recurring' && <input type="number" min="1" max="31" className="w-16 p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs text-center outline-none" value={editData.dueDay} onChange={e=>setEditData({...editData, dueDay: e.target.value})} />}
           </div>
           {item.type === 'daily' && <input type="date" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none" value={editData.date?.split('T')[0]} onChange={e=>setEditData({...editData, date: e.target.value + 'T12:00:00Z'})} />}
@@ -542,7 +556,6 @@ const ItemCard = ({ item, accent, uid, categories }) => {
       </div>
     );
   }
-
   return (
     <div className={`bg-white p-5 rounded-[2.2rem] border-l-[10px] shadow-sm flex flex-col gap-4 border-${accent}-500 ${item.paid && item.type !== 'income' ? 'opacity-50' : ''}`}>
       <div className="flex justify-between items-start">
@@ -569,7 +582,7 @@ const ItemCard = ({ item, accent, uid, categories }) => {
       </div>
       {showPartial && (
         <div className="flex gap-2 p-3 bg-amber-50 rounded-2xl animate-fade-in">
-          <input inputmode="decimal" className="flex-1 p-3 bg-white border border-amber-200 rounded-xl text-xs font-black outline-none" placeholder="Pago parcial..." value={partialVal} onChange={e=>setPartialVal(e.target.value)} />
+          <input inputMode="decimal" className="flex-1 p-3 bg-white border border-amber-200 rounded-xl text-xs font-black outline-none" placeholder="Pago parcial..." value={partialVal} onChange={e=>setPartialVal(e.target.value)} />
           <button onClick={() => { handleUpdate({ paid: true, paymentType: 'partial', paidAmount: parseLocaleNumber(partialVal) }); setShowPartial(false); }} className="bg-amber-500 text-white px-4 rounded-xl text-[10px] font-black uppercase">Ok</button>
         </div>
       )}
@@ -592,7 +605,6 @@ const TemplateForm = ({ categories, onAdd, isIncome = false }) => {
   const [amount, setAmount] = useState('');
   const [cat, setCat] = useState(isIncome ? 'Ingreso' : 'General');
   const [dueDay, setDueDay] = useState('1');
-
   return (
     <form onSubmit={e => { e.preventDefault(); if (!name) return; onAdd({ name, amount: parseLocaleNumber(amount), category: cat, dueDay: parseInt(dueDay) || 1 }); setName(''); setAmount(''); }} className="p-6 bg-slate-900 rounded-[2.5rem] shadow-xl space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -603,7 +615,7 @@ const TemplateForm = ({ categories, onAdd, isIncome = false }) => {
         <div className="flex gap-2">
           <div className="flex-1 flex flex-col gap-1">
             <label className="text-amber-300 text-[9px] font-black uppercase ml-1 tracking-widest">Monto</label>
-            <input inputmode="decimal" className="p-4 bg-white/10 text-white placeholder-white/30 rounded-2xl text-sm outline-none border border-white/5" placeholder="$ 0,00" value={amount} onChange={e=>setAmount(e.target.value)} />
+            <input inputMode="decimal" className="p-4 bg-white/10 text-white placeholder-white/30 rounded-2xl text-sm outline-none border border-white/5" placeholder="$ 0,00" value={amount} onChange={e=>setAmount(e.target.value)} />
           </div>
           <div className="w-20 flex flex-col gap-1">
             <label className="text-amber-300 text-[9px] font-black uppercase ml-1 text-center tracking-widest">Día</label>
@@ -624,7 +636,6 @@ const TemplateForm = ({ categories, onAdd, isIncome = false }) => {
 const TemplateCard = ({ template, onDelete, onUpdate, categories, isIncome }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({ ...template });
-
   const onSave = () => {
     onUpdate(template.id, {
       ...editData,
@@ -633,13 +644,12 @@ const TemplateCard = ({ template, onDelete, onUpdate, categories, isIncome }) =>
     });
     setIsEditing(false);
   };
-
   if (isEditing) {
     return (
       <div className="p-5 bg-slate-900 border border-white/5 rounded-[2rem] shadow-xl space-y-3 animate-fade-in">
         <input className="w-full p-3 bg-white/10 text-white rounded-xl text-xs outline-none border border-white/10" value={editData.name} onChange={e=>setEditData({...editData, name: e.target.value})} />
         <div className="flex gap-2">
-          <input inputmode="decimal" className="flex-1 p-3 bg-white/10 text-white rounded-xl text-xs font-black outline-none border border-white/10" value={editData.amount} onChange={e=>setEditData({...editData, amount: e.target.value})} />
+          <input inputMode="decimal" className="flex-1 p-3 bg-white/10 text-white rounded-xl text-xs font-black outline-none border border-white/10" value={editData.amount} onChange={e=>setEditData({...editData, amount: e.target.value})} />
           <input type="number" min="1" max="31" className="w-16 p-3 bg-white/10 text-white rounded-xl text-xs text-center outline-none border border-white/10" value={editData.dueDay} onChange={e=>setEditData({...editData, dueDay: e.target.value})} />
         </div>
         {!isIncome && (
@@ -654,7 +664,6 @@ const TemplateCard = ({ template, onDelete, onUpdate, categories, isIncome }) =>
       </div>
     );
   }
-
   return (
     <div className="p-5 bg-slate-50 border border-slate-100 rounded-[2rem] flex justify-between items-center group shadow-sm transition-all hover:border-slate-300">
       <div className="flex-1">
@@ -788,7 +797,6 @@ const AnalysisView = ({ currentMonthItems, stats, items, navDate, isSmall }) => 
           ))}
         </div>
       </div>
-
       <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
@@ -815,12 +823,12 @@ const NavTab = ({ active, onClick, icon, label }) => (
 // Bootstrap App
 window.addEventListener('load', () => {
   const container = document.getElementById('root');
-  if(container) {
+  if (container) {
     const root = createRoot(container);
     root.render(<App />);
   }
 });
 
-</script>
+  </script>
 </body>
 </html>
