@@ -482,7 +482,7 @@ const App = () => {
               </div>
             </div>
             <div className="hidden md:block">
-              <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} items={items} navDate={navDate} isSmall budgets={budgets} cards={cards} />
+              <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} items={items} navDate={navDate} isSmall budgets={budgets} cards={cards} onSaveCards={saveCards} />
             </div>
           </div>
         </div>
@@ -490,7 +490,7 @@ const App = () => {
 
       <main className="main-container space-y-8">
         {view === 'dashboard' && <DashboardView stats={stats} onNavigate={setView} />}
-        {view === 'analysis' && <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} items={items} navDate={navDate} budgets={budgets} cards={cards} />}
+        {view === 'analysis' && <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} items={items} navDate={navDate} budgets={budgets} cards={cards} onSaveCards={saveCards} />}
         {(view === 'income' || view === 'recurring' || view === 'daily') && (
           <ListView
             title={view === 'income' ? 'Ingresos' : view === 'recurring' ? 'Gastos Fijos' : 'Gastos Diarios'}
@@ -983,34 +983,34 @@ const TemplateForm = ({ categories, onAdd, isIncome = false, cards = [] }) => {
   const [cardId, setCardId] = useState('');
 
   return (
-    <form onSubmit={e => { e.preventDefault(); if (!name) return; onAdd({ name, amount: parseLocaleNumber(amount), category: cat, dueDay: parseInt(dueDay) || 1, isAutoDebit: !isIncome && isAutoDebit, cardId: !isIncome && isAutoDebit ? (cardId || null) : null }); setName(''); setAmount(''); setIsAutoDebit(false); setCardId(''); }} className="p-6 bg-slate-900 rounded-[2.5rem] shadow-xl space-y-4">
+    <form onSubmit={e => { e.preventDefault(); if (!name) return; onAdd({ name, amount: parseLocaleNumber(amount), category: cat, dueDay: parseInt(dueDay) || 1, isAutoDebit: !isIncome && isAutoDebit, cardId: !isIncome && isAutoDebit ? (cardId || null) : null }); setName(''); setAmount(''); setIsAutoDebit(false); setCardId(''); }} className="p-6 bg-white border border-slate-100 rounded-[2.5rem] shadow-sm space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
-          <label className="text-amber-300 text-[9px] font-black uppercase ml-1 tracking-widest">Nombre</label>
-          <input className="p-4 bg-white/10 text-white placeholder-white/30 rounded-2xl text-sm outline-none border border-white/5" placeholder="Ej. Sueldo" value={name} onChange={e=>setName(e.target.value)} />
+          <label className="text-slate-500 text-[9px] font-black uppercase ml-1 tracking-widest">Nombre</label>
+          <input className="p-4 bg-slate-50 text-slate-900 placeholder-slate-400 rounded-2xl text-sm outline-none border border-slate-200 focus:border-indigo-300 transition-all" placeholder="Ej. Sueldo" value={name} onChange={e=>setName(e.target.value)} />
         </div>
         <div className="flex gap-2">
           <div className="flex-1 flex flex-col gap-1">
-            <label className="text-amber-300 text-[9px] font-black uppercase ml-1 tracking-widest">Monto</label>
-            <input inputMode="decimal" className="p-4 bg-white/10 text-white placeholder-white/30 rounded-2xl text-xl font-black outline-none border border-white/5" placeholder="0,00" value={amount} onChange={e=>setAmount(formatAmountInput(e.target.value))} />
+            <label className="text-slate-500 text-[9px] font-black uppercase ml-1 tracking-widest">Monto</label>
+            <input inputMode="decimal" className="p-4 bg-slate-50 text-slate-900 placeholder-slate-400 rounded-2xl text-xl font-black outline-none border border-slate-200 focus:border-indigo-300 transition-all" placeholder="0,00" value={amount} onChange={e=>setAmount(formatAmountInput(e.target.value))} />
           </div>
           <div className="w-20 flex flex-col gap-1">
-            <label className="text-amber-300 text-[9px] font-black uppercase ml-1 text-center tracking-widest">Día</label>
-            <input type="number" min="1" max="31" className="p-4 bg-white/10 text-white rounded-2xl text-sm text-center outline-none border border-white/5" value={dueDay} onChange={e=>setDueDay(e.target.value)} />
+            <label className="text-slate-500 text-[9px] font-black uppercase ml-1 text-center tracking-widest">Día</label>
+            <input type="number" min="1" max="31" className="p-4 bg-slate-50 text-slate-900 rounded-2xl text-sm text-center outline-none border border-slate-200 focus:border-indigo-300 transition-all" value={dueDay} onChange={e=>setDueDay(e.target.value)} />
           </div>
         </div>
       </div>
       {!isIncome && (
         <>
           <div className="flex flex-wrap gap-2 py-2">
-            {categories.map(c => <button key={c} type="button" onClick={() => setCat(c)} className={`px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all ${cat === c ? 'bg-amber-400 text-slate-900 border-amber-400' : 'bg-white/5 text-white/60 border-white/10'}`}>{c}</button>)}
+            {categories.map(c => <button key={c} type="button" onClick={() => setCat(c)} className={`px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all ${cat === c ? 'bg-amber-400 text-slate-900 border-amber-400' : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-slate-300'}`}>{c}</button>)}
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <button type="button" onClick={() => setIsAutoDebit(!isAutoDebit)} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase border transition-all ${isAutoDebit ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white/5 text-white/60 border-white/10'}`}>
+            <button type="button" onClick={() => setIsAutoDebit(!isAutoDebit)} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase border transition-all ${isAutoDebit ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-slate-300'}`}>
               {isAutoDebit ? '✓ Débito Automático TC' : 'Débito Automático TC'}
             </button>
             {isAutoDebit && cards.length > 0 && (
-              <select value={cardId} onChange={e => setCardId(e.target.value)} className="p-2 bg-white/10 text-white rounded-2xl text-xs font-black outline-none border border-white/10">
+              <select value={cardId} onChange={e => setCardId(e.target.value)} className="p-2 bg-slate-50 text-slate-900 rounded-2xl text-xs font-black outline-none border border-slate-200">
                 <option value="">Sin tarjeta asignada</option>
                 {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -1018,7 +1018,7 @@ const TemplateForm = ({ categories, onAdd, isIncome = false, cards = [] }) => {
           </div>
         </>
       )}
-      <button type="submit" className="w-full bg-white text-slate-900 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-amber-400 transition-all">Guardar Plantilla</button>
+      <button type="submit" className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-indigo-600 transition-all">Guardar Plantilla</button>
     </form>
   );
 };
@@ -1036,23 +1036,23 @@ const TemplateCard = ({ template, onDelete, onUpdate, categories, isIncome, card
 
   if (isEditing) {
     return (
-      <div className="p-5 bg-slate-900 border border-white/5 rounded-[2rem] shadow-xl space-y-3 animate-fade-in">
-        <input className="w-full p-3 bg-white/10 text-white rounded-xl text-xs outline-none border border-white/10" value={editData.name} onChange={e=>setEditData({...editData, name: e.target.value})} />
+      <div className="p-5 bg-white border border-slate-200 rounded-[2rem] shadow-sm space-y-3 animate-fade-in">
+        <input className="w-full p-3 bg-slate-50 text-slate-900 rounded-xl text-xs outline-none border border-slate-200 focus:border-indigo-300 transition-all" value={editData.name} onChange={e=>setEditData({...editData, name: e.target.value})} />
         <div className="flex gap-2">
-          <input inputMode="decimal" className="flex-1 p-3 bg-white/10 text-white rounded-xl text-base font-black outline-none border border-white/10" value={editData.amount} onChange={e=>setEditData({...editData, amount: formatAmountInput(e.target.value)})} />
-          <input type="number" min="1" max="31" className="w-16 p-3 bg-white/10 text-white rounded-xl text-xs text-center outline-none border border-white/10" value={editData.dueDay} onChange={e=>setEditData({...editData, dueDay: e.target.value})} />
+          <input inputMode="decimal" className="flex-1 p-3 bg-slate-50 text-slate-900 rounded-xl text-base font-black outline-none border border-slate-200 focus:border-indigo-300 transition-all" value={editData.amount} onChange={e=>setEditData({...editData, amount: formatAmountInput(e.target.value)})} />
+          <input type="number" min="1" max="31" className="w-16 p-3 bg-slate-50 text-slate-900 rounded-xl text-xs text-center outline-none border border-slate-200 focus:border-indigo-300 transition-all" value={editData.dueDay} onChange={e=>setEditData({...editData, dueDay: e.target.value})} />
         </div>
         {!isIncome && (
           <>
             <div className="flex flex-wrap gap-1">
-              {categories.map(c => <button key={c} type="button" onClick={()=>setEditData({...editData, category: c})} className={`px-2 py-1 rounded-full text-[7px] font-black uppercase border ${editData.category === c ? 'bg-amber-400 text-slate-900' : 'bg-white/5 text-white/60'}`}>{c}</button>)}
+              {categories.map(c => <button key={c} type="button" onClick={()=>setEditData({...editData, category: c})} className={`px-2 py-1 rounded-full text-[7px] font-black uppercase border transition-all ${editData.category === c ? 'bg-amber-400 text-slate-900 border-amber-400' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>{c}</button>)}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <button type="button" onClick={() => setEditData({...editData, isAutoDebit: !editData.isAutoDebit})} className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase border transition-all ${editData.isAutoDebit ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white/5 text-white/60 border-white/10'}`}>
+              <button type="button" onClick={() => setEditData({...editData, isAutoDebit: !editData.isAutoDebit})} className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase border transition-all ${editData.isAutoDebit ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
                 {editData.isAutoDebit ? '✓ Débito Auto TC' : 'Débito Auto TC'}
               </button>
               {editData.isAutoDebit && cards.length > 0 && (
-                <select value={editData.cardId || ''} onChange={e => setEditData({...editData, cardId: e.target.value || null})} className="p-1.5 bg-white/10 text-white rounded-xl text-xs font-black outline-none border border-white/10">
+                <select value={editData.cardId || ''} onChange={e => setEditData({...editData, cardId: e.target.value || null})} className="p-1.5 bg-slate-50 text-slate-900 rounded-xl text-xs font-black outline-none border border-slate-200">
                   <option value="">Sin tarjeta</option>
                   {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
@@ -1061,8 +1061,8 @@ const TemplateCard = ({ template, onDelete, onUpdate, categories, isIncome, card
           </>
         )}
         <div className="flex gap-2 pt-2">
-          <button onClick={onSave} className="flex-1 bg-white text-slate-900 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest">Guardar</button>
-          <button onClick={()=>setIsEditing(false)} className="px-4 border border-white/20 text-white/40 py-2.5 rounded-xl text-[9px] font-black uppercase">X</button>
+          <button onClick={onSave} className="flex-1 bg-slate-900 text-white py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all">Guardar</button>
+          <button onClick={()=>setIsEditing(false)} className="px-4 border border-slate-200 text-slate-400 py-2.5 rounded-xl text-[9px] font-black uppercase hover:bg-slate-50 transition-all">X</button>
         </div>
       </div>
     );
@@ -1125,24 +1125,24 @@ const CardsSection = ({ cards, onSave }) => {
       </p>
       <div className="space-y-3">
         {cards.map(card => editingId === card.id ? (
-          <div key={card.id} className="p-4 bg-slate-900 rounded-2xl space-y-3 animate-fade-in">
-            <input className="w-full p-3 bg-white/10 text-white rounded-xl text-xs outline-none border border-white/10" value={editData.name || ''} onChange={e => setEditData({...editData, name: e.target.value})} placeholder="Nombre" />
+          <div key={card.id} className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3 animate-fade-in shadow-sm">
+            <input className="w-full p-3 bg-slate-50 text-slate-900 rounded-xl text-xs outline-none border border-slate-200 focus:border-indigo-300 transition-all" value={editData.name || ''} onChange={e => setEditData({...editData, name: e.target.value})} placeholder="Nombre" />
             <div className="flex gap-2">
               <div className="flex-1 flex flex-col gap-1">
-                <label className="text-amber-300 text-[8px] font-black uppercase tracking-widest">Cierre</label>
-                <input type="number" min="1" max="31" className="p-3 bg-white/10 text-white rounded-xl text-xs text-center outline-none border border-white/10" value={editData.closingDay || ''} onChange={e => setEditData({...editData, closingDay: e.target.value})} />
+                <label className="text-slate-500 text-[8px] font-black uppercase tracking-widest">Cierre</label>
+                <input type="number" min="1" max="31" className="p-3 bg-slate-50 text-slate-900 rounded-xl text-xs text-center outline-none border border-slate-200 focus:border-indigo-300 transition-all" value={editData.closingDay || ''} onChange={e => setEditData({...editData, closingDay: e.target.value})} />
               </div>
               <div className="flex-1 flex flex-col gap-1">
-                <label className="text-amber-300 text-[8px] font-black uppercase tracking-widest">Vencimiento</label>
-                <input type="number" min="1" max="31" className="p-3 bg-white/10 text-white rounded-xl text-xs text-center outline-none border border-white/10" value={editData.dueDay || ''} onChange={e => setEditData({...editData, dueDay: e.target.value})} />
+                <label className="text-slate-500 text-[8px] font-black uppercase tracking-widest">Vencimiento</label>
+                <input type="number" min="1" max="31" className="p-3 bg-slate-50 text-slate-900 rounded-xl text-xs text-center outline-none border border-slate-200 focus:border-indigo-300 transition-all" value={editData.dueDay || ''} onChange={e => setEditData({...editData, dueDay: e.target.value})} />
               </div>
             </div>
-            <button type="button" onClick={() => setEditData({...editData, isDefault: !editData.isDefault})} className={`w-full py-2 rounded-xl text-[9px] font-black uppercase border transition-all ${editData.isDefault ? 'bg-amber-400 text-slate-900 border-amber-400' : 'bg-white/5 text-white/60 border-white/10'}`}>
+            <button type="button" onClick={() => setEditData({...editData, isDefault: !editData.isDefault})} className={`w-full py-2 rounded-xl text-[9px] font-black uppercase border transition-all ${editData.isDefault ? 'bg-amber-400 text-slate-900 border-amber-400' : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-slate-300'}`}>
               {editData.isDefault ? '★ Predeterminada' : 'Marcar como predeterminada'}
             </button>
             <div className="flex gap-2">
-              <button onClick={() => saveEdit(card.id)} className="flex-1 bg-white text-slate-900 py-2.5 rounded-xl text-[9px] font-black uppercase">Guardar</button>
-              <button onClick={() => setEditingId(null)} className="px-4 border border-white/20 text-white/40 py-2.5 rounded-xl text-[9px] font-black uppercase">X</button>
+              <button onClick={() => saveEdit(card.id)} className="flex-1 bg-slate-900 text-white py-2.5 rounded-xl text-[9px] font-black uppercase hover:bg-indigo-600 transition-all">Guardar</button>
+              <button onClick={() => setEditingId(null)} className="px-4 border border-slate-200 text-slate-400 py-2.5 rounded-xl text-[9px] font-black uppercase hover:bg-slate-50 transition-all">X</button>
             </div>
           </div>
         ) : (
@@ -1159,31 +1159,32 @@ const CardsSection = ({ cards, onSave }) => {
           </div>
         ))}
       </div>
-      <form onSubmit={addCard} className="p-5 bg-slate-900 rounded-2xl space-y-3">
-        <p className="text-amber-300 text-[9px] font-black uppercase tracking-widest">Nueva Tarjeta</p>
-        <input className="w-full p-3 bg-white/10 text-white placeholder-white/30 rounded-xl text-sm outline-none border border-white/5" placeholder="Nombre (ej. Visa Galicia)" value={newName} onChange={e => setNewName(e.target.value)} />
+      <form onSubmit={addCard} className="p-5 bg-white border border-slate-200 rounded-2xl space-y-3 shadow-sm">
+        <p className="text-slate-500 text-[9px] font-black uppercase tracking-widest">Nueva Tarjeta</p>
+        <input className="w-full p-3 bg-slate-50 text-slate-900 placeholder-slate-400 rounded-xl text-sm outline-none border border-slate-200 focus:border-indigo-300 transition-all" placeholder="Nombre (ej. Visa Galicia)" value={newName} onChange={e => setNewName(e.target.value)} />
         <div className="flex gap-2">
           <div className="flex-1 flex flex-col gap-1">
-            <label className="text-amber-300 text-[8px] font-black uppercase tracking-widest">Día cierre</label>
-            <input type="number" min="1" max="31" className="p-3 bg-white/10 text-white rounded-xl text-xs text-center outline-none border border-white/5" value={newClosingDay} onChange={e => setNewClosingDay(e.target.value)} />
+            <label className="text-slate-500 text-[8px] font-black uppercase tracking-widest">Día cierre</label>
+            <input type="number" min="1" max="31" className="p-3 bg-slate-50 text-slate-900 rounded-xl text-xs text-center outline-none border border-slate-200 focus:border-indigo-300 transition-all" value={newClosingDay} onChange={e => setNewClosingDay(e.target.value)} />
           </div>
           <div className="flex-1 flex flex-col gap-1">
-            <label className="text-amber-300 text-[8px] font-black uppercase tracking-widest">Día vencimiento</label>
-            <input type="number" min="1" max="31" className="p-3 bg-white/10 text-white rounded-xl text-xs text-center outline-none border border-white/5" value={newDueDay} onChange={e => setNewDueDay(e.target.value)} />
+            <label className="text-slate-500 text-[8px] font-black uppercase tracking-widest">Día vencimiento</label>
+            <input type="number" min="1" max="31" className="p-3 bg-slate-50 text-slate-900 rounded-xl text-xs text-center outline-none border border-slate-200 focus:border-indigo-300 transition-all" value={newDueDay} onChange={e => setNewDueDay(e.target.value)} />
           </div>
         </div>
-        <button type="submit" className="w-full bg-white text-slate-900 py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-amber-400 transition-all">Agregar Tarjeta</button>
+        <button type="submit" className="w-full bg-slate-900 text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-indigo-600 transition-all">Agregar Tarjeta</button>
       </form>
     </div>
   );
 };
 
-const AnalysisView = ({ currentMonthItems, stats, items, navDate, isSmall, budgets = {}, cards = [] }) => {
+const AnalysisView = ({ currentMonthItems, stats, items, navDate, isSmall, budgets = {}, cards = [], onSaveCards }) => {
   const chartRef = useRef(null);
   const trendRef = useRef(null);
   const chartInstance = useRef(null);
   const trendInstance = useRef(null);
   const [selectedRecurringName, setSelectedRecurringName] = useState("");
+  const [prevBalInputs, setPrevBalInputs] = useState({});
 
   const recurringNames = useMemo(() => {
     return [...new Set(items.filter(i => i.type === 'recurring').map(i => i.name))].sort();
@@ -1318,17 +1319,30 @@ const AnalysisView = ({ currentMonthItems, stats, items, navDate, isSmall, budge
           const dailyCredits = currentMonthItems.filter(i => i.type === 'daily' && i.paymentMethod === 'credit' && i.cardId === card.id);
           const autoDebitTotal = autoDebits.reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
           const dailyCreditTotal = dailyCredits.reduce((a, c) => a + (parseFloat(c.amount) || 0) / (c.cuotas || 1), 0);
-          return { card, autoDebits, dailyCredits, autoDebitTotal, dailyCreditTotal, total: autoDebitTotal + dailyCreditTotal };
-        }).filter(d => d.autoDebits.length > 0 || d.dailyCredits.length > 0);
+          const prevBal = parseFloat(card.previousBalance) || 0;
+          return { card, autoDebits, dailyCredits, autoDebitTotal, dailyCreditTotal, prevBal, total: prevBal + autoDebitTotal + dailyCreditTotal };
+        }).filter(d => d.autoDebits.length > 0 || d.dailyCredits.length > 0 || d.prevBal > 0);
 
         if (cardData.length === 0) return null;
 
+        const updatePrevBalance = (cardId, rawVal) => {
+          if (!onSaveCards) return;
+          const parsed = parseLocaleNumber(rawVal);
+          const updated = cards.map(c => c.id === cardId ? { ...c, previousBalance: isNaN(parsed) ? 0 : parsed } : c);
+          onSaveCards(updated);
+        };
+
         return (
           <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
-            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">Proyección</h3>
-            <h4 className="text-xl font-black text-slate-900 tracking-tight mb-6">Próximo Resumen por Tarjeta</h4>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-2 mb-6">
+              <div>
+                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">Proyección</h3>
+                <h4 className="text-xl font-black text-slate-900 tracking-tight">Próximo Resumen por Tarjeta</h4>
+              </div>
+              <p className="text-[9px] text-slate-400 font-medium leading-relaxed max-w-xs text-right">Estimado · No incluye intereses · El saldo anterior es ingresado manualmente y puede no coincidir con el total real</p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {cardData.map(({ card, autoDebits, dailyCredits, autoDebitTotal, dailyCreditTotal, total }) => (
+              {cardData.map(({ card, autoDebits, dailyCredits, autoDebitTotal, dailyCreditTotal, prevBal, total }) => (
                 <div key={card.id} className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
@@ -1336,6 +1350,21 @@ const AnalysisView = ({ currentMonthItems, stats, items, navDate, isSmall, budge
                       <p className="text-[9px] text-slate-400 font-medium mt-0.5">Cierre día {card.closingDay} · Vence día {card.dueDay}</p>
                     </div>
                     <p className="text-xl font-black text-indigo-600">{formatCurrency(total)}</p>
+                  </div>
+
+                  {/* Saldo anterior editable */}
+                  <div className="flex items-center justify-between gap-3 bg-white px-3 py-2 rounded-xl border border-slate-100">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Saldo anterior</span>
+                    <input
+                      inputMode="decimal"
+                      className="w-28 text-right p-1 bg-transparent text-slate-900 text-sm font-black outline-none border-b border-dashed border-slate-300 focus:border-indigo-400 transition-all"
+                      value={prevBalInputs[card.id] !== undefined ? prevBalInputs[card.id] : numberToFormattedInput(card.previousBalance || 0)}
+                      onChange={e => setPrevBalInputs(prev => ({ ...prev, [card.id]: formatAmountInput(e.target.value) }))}
+                      onBlur={e => {
+                        updatePrevBalance(card.id, e.target.value);
+                        setPrevBalInputs(prev => { const n = { ...prev }; delete n[card.id]; return n; });
+                      }}
+                    />
                   </div>
 
                   {autoDebits.length > 0 && (
