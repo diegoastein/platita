@@ -427,9 +427,11 @@ const App = () => {
     const prevIncome = prevMonthItems.filter(i => i.type === 'income' && i.paid).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
     const prevSpent = prevMonthItems.filter(i => i.type !== 'income').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
     const calcDelta = (curr, prev) => prev === 0 ? null : Math.round(((curr - prev) / prev) * 100);
+    const prevBalTotal = prevMonthItems.filter(i => i.type === 'recurring' && !i.isAutoDebit && i.cardId && i.paid && i.paymentType === 'partial')
+      .reduce((a, c) => a + Math.max(0, (parseFloat(c.amount) || 0) - (parseFloat(c.paidAmount) || 0)), 0);
 
     return {
-      income: incomeCobrado, incomePending, recPaid, recPending, daily, dailyDebit, dailyCredit, autoDebitTotal, creditByCard,
+      income: incomeCobrado, incomePending, recPaid, recPending, daily, dailyDebit, dailyCredit, autoDebitTotal, creditByCard, prevBalTotal,
       balance: incomeCobrado - recPaid - dailyDebit,
       totalSpent: recPaid + dailyDebit,
       currentMonthItems,
@@ -591,6 +593,12 @@ const App = () => {
                   </p>
                 )}
                 {(!stats.incomePending || stats.incomePending === 0) && <div className="mb-5"></div>}
+                {stats.prevBalTotal > 0 && (
+                  <div className="flex items-center gap-2 bg-amber-400/15 border border-amber-400/30 rounded-xl px-4 py-2 mb-5 -mt-3">
+                    <span className="text-amber-400 text-xs">⚠</span>
+                    <p className="text-amber-400 text-[11px] font-black">{hideBalance ? "Saldo ant. TC pendiente" : `Saldo ant. TC pendiente: ${formatCurrency(stats.prevBalTotal)}`}</p>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-8 border-t border-white/20 pt-6 w-full text-center">
                   <div>
                     <p className="text-amber-400 text-[10px] uppercase font-black mb-1">Ingresos</p>
