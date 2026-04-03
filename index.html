@@ -67,16 +67,155 @@ body.dark input:not([class*="bg-slate-9"]):not([class*="bg-white/"]), body.dark 
 <script type="text/babel">
 
 // --- CONSTANTES ---
-const DEFAULT_CATEGORIES = ["Hogar", "Servicios", "Impuestos", "Salud", "Educación", "Tarjetas", "Ocio", "Comida", "General"];
+const DEFAULT_CATEGORIES = [
+  // Alimentación
+  "Supermercado","Almacén","Carnicería","Verdulería","Panadería","Fiambrería","Pescadería","Dietética",
+  "Café y Bebidas","Comida Rápida","Restaurante","Delivery","Heladería","Kiosco",
+  // Hogar
+  "Alquiler","Expensas","Hipoteca","Reparaciones","Muebles","Electrodomésticos","Limpieza del Hogar","Decoración","Jardinería",
+  // Servicios
+  "Luz / Electricidad","Gas","Agua / AYSA","Internet","Telefonía","Cable","Streaming",
+  // Transporte
+  "Combustible","Transporte Público","Taxi / Remis","Peaje","Estacionamiento","Seguro Vehículo","Patente","Mantenimiento Vehículo","Lavado de Auto","Vuelos",
+  // Salud
+  "Obra Social / Prepaga","Farmacia","Médico / Clínica","Dentista","Oftalmólogo","Psicólogo","Nutricionista","Kinesiología","Análisis Clínicos","Óptica",
+  // Educación
+  "Colegio / Escuela","Universidad","Cursos y Capacitaciones","Guardería","Jardín de Infantes","Idiomas","Material Escolar","Libros",
+  // Ropa y Calzado
+  "Ropa","Calzado","Ropa Interior","Indumentaria Deportiva","Accesorios de Moda",
+  // Entretenimiento
+  "Cine","Teatro","Salidas / Bares","Viajes y Turismo","Juegos y Videojuegos","Deporte","Gimnasio","Música / Conciertos","Lectura y Revistas",
+  // Tecnología
+  "Celular","Computadora / Tablet","Accesorios Tech","Software","Suscripciones Online","Reparación Tech",
+  // Finanzas
+  "Tarjeta de Crédito","Cuota / Préstamo","Seguro de Vida","Seguro del Hogar","Ahorro / Inversión",
+  // Personal y Bienestar
+  "Peluquería / Barbería","Belleza y Spa","Cuidado Personal","Suplementos",
+  // Mascotas
+  "Veterinario","Alimento Mascota","Accesorios Mascota","Peluquería Canina",
+  // Regalos y Sociales
+  "Regalos","Donaciones","Cumpleaños y Eventos",
+  // Impuestos y Tasas
+  "AFIP / Impuestos","Monotributo","ABL / Inmobiliario","Ingresos Brutos","Tasas Municipales",
+  // Trabajo
+  "Herramientas de Trabajo","Transporte Laboral","Comida Laboral",
+  // Bebés y Niños
+  "Pañales y Bebé","Ropa de Niños","Juguetes","Actividades Infantiles",
+  // Construcción y Reforma
+  "Materiales de Construcción","Mano de Obra","Plomería","Electricidad del Hogar",
+  // Animales de Granja / Campo
+  "Insumos Agropecuarios",
+  // General
+  "General","Otros"
+];
 const CHART_COLORS = ['#10b981', '#f43f5e', '#f59e0b', '#6366f1', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899', '#14b8a6', '#3b82f6', '#a855f7', '#84cc16'];
-const CATEGORY_SUGGESTIONS = {
-  'comida': 'Comida', 'super': 'Comida', 'almuerzo': 'Comida', 'cena': 'Comida', 'carne': 'Comida', 'verdura': 'Comida', 'chino': 'Comida', 'kiosco': 'Comida', 'pan': 'Comida',
-  'luz': 'Servicios', 'agua': 'Servicios', 'gas': 'Servicios', 'internet': 'Servicios', 'tel': 'Servicios', 'netflix': 'Ocio', 'spotify': 'Ocio',
-  'farmacia': 'Salud', 'remedio': 'Salud', 'osde': 'Salud', 'medico': 'Salud', 'dentista': 'Salud',
-  'nafta': 'General', 'uber': 'General', 'taxi': 'General', 'colectivo': 'General', 'sube': 'General',
-  'colegio': 'Educación', 'cuota': 'Educación', 'facu': 'Educación', 'libros': 'Educación',
-  'cine': 'Ocio', 'birra': 'Ocio', 'bar': 'Ocio', 'cerveza': 'Ocio', 'salida': 'Ocio',
-  'visa': 'Tarjetas', 'master': 'Tarjetas', 'naranja': 'Tarjetas', 'banco': 'Impuestos'
+const CATEGORY_KEYWORDS = {
+  // Supermercado
+  'super ':'Supermercado','coto':'Supermercado','disco':'Supermercado','carrefour':'Supermercado','jumbo':'Supermercado','dia ':'Supermercado','vea':'Supermercado','walmart':'Supermercado',
+  // Almacén / Verdulería
+  'almacen':'Almacén','chino':'Almacén','verduleria':'Verdulería','verdura':'Verdulería','fruta':'Verdulería',
+  'carniceria':'Carnicería','carne':'Carnicería','pollo':'Carnicería','asado':'Carnicería',
+  'panaderia':'Panadería','pan ':'Panadería','facturas':'Panadería','medialunas':'Panadería',
+  // Comida
+  'pizza':'Comida Rápida','burger':'Comida Rápida','hamburguesa':'Comida Rápida','empanada':'Comida Rápida','mcdonalds':'Comida Rápida','kfc':'Comida Rápida',
+  'restaurant':'Restaurante','resto ':'Restaurante','almuerzo':'Restaurante','cena ':'Restaurante','sushi':'Restaurante','parrilla':'Restaurante',
+  'delivery':'Delivery','pedidosya':'Delivery','rappi':'Delivery',
+  'kiosco':'Kiosco','kiosko':'Kiosco','snack':'Kiosco','golosina':'Kiosco',
+  'helado':'Heladería','heladeria':'Heladería',
+  'cafe ':'Café y Bebidas','cafeteria':'Café y Bebidas','starbucks':'Café y Bebidas','bebida':'Café y Bebidas','jugo':'Café y Bebidas','agua ':'Café y Bebidas',
+  // Hogar
+  'alquiler':'Alquiler','renta':'Alquiler',
+  'expensas':'Expensas',
+  'hipoteca':'Hipoteca','credito hipotecario':'Hipoteca',
+  'mueble':'Muebles','silla':'Muebles','mesa ':'Muebles','cama':'Muebles','sofa':'Muebles',
+  'heladera':'Electrodomésticos','lavarropas':'Electrodomésticos','microondas':'Electrodomésticos','televisor':'Electrodomésticos','smart tv':'Electrodomésticos','lavavajillas':'Electrodomésticos','ventilador':'Electrodomésticos','aire acondicionado':'Electrodomésticos',
+  'limpieza':'Limpieza del Hogar','detergente':'Limpieza del Hogar','lavandina':'Limpieza del Hogar','escoba':'Limpieza del Hogar',
+  'pintura':'Reparaciones','plomero':'Reparaciones','electricista':'Reparaciones','reparacion':'Reparaciones','arreglo':'Reparaciones',
+  // Servicios
+  'luz ':'Luz / Electricidad','edesur':'Luz / Electricidad','edenor':'Luz / Electricidad','electricidad':'Luz / Electricidad',
+  'gas ':'Gas','metrogas':'Gas','naturgy':'Gas',
+  'agua/':'Agua / AYSA','aysa':'Agua / AYSA',
+  'internet':'Internet','wifi':'Internet','fibertel':'Internet','telecentro':'Internet','cablevision':'Internet',
+  'telefono':'Telefonía','movistar':'Telefonía','claro':'Telefonía','personal ':'Telefonía','tuenti':'Telefonía',
+  'cable ':'Cable','directv':'Cable',
+  'netflix':'Streaming','disney':'Streaming','hbo':'Streaming','spotify':'Streaming','prime video':'Streaming','paramount':'Streaming','streaming':'Streaming',
+  'youtube premium':'Suscripciones Online','apple music':'Suscripciones Online','icloud':'Suscripciones Online','dropbox':'Suscripciones Online',
+  // Transporte
+  'nafta':'Combustible','combustible':'Combustible','ypf':'Combustible','shell':'Combustible','axion':'Combustible','puma':'Combustible',
+  'sube':'Transporte Público','colectivo':'Transporte Público','subte':'Transporte Público','tren ':'Transporte Público',
+  'uber':'Taxi / Remis','taxi':'Taxi / Remis','remis':'Taxi / Remis','cabify':'Taxi / Remis','indrive':'Taxi / Remis',
+  'peaje':'Peaje','autopista':'Peaje',
+  'estacionamiento':'Estacionamiento','parking':'Estacionamiento',
+  'seguro auto':'Seguro Vehículo','seguro vehiculo':'Seguro Vehículo','seguros sancor':'Seguro Vehículo','la segunda':'Seguro Vehículo',
+  'patente':'Patente',
+  'taller':'Mantenimiento Vehículo','service':'Mantenimiento Vehículo','mecanico':'Mantenimiento Vehículo','aceite':'Mantenimiento Vehículo','goma':'Mantenimiento Vehículo','neumatico':'Mantenimiento Vehículo',
+  'lavado auto':'Lavado de Auto',
+  'vuelo':'Vuelos','aerolineas':'Vuelos','flybondi':'Vuelos','jetsmart':'Vuelos',
+  // Salud
+  'farmacia':'Farmacia','remedio':'Farmacia','medicamento':'Farmacia','pastilla':'Farmacia','vitamina':'Farmacia',
+  'osde':'Obra Social / Prepaga','swiss':'Obra Social / Prepaga','medicus':'Obra Social / Prepaga','omint':'Obra Social / Prepaga','prepaga':'Obra Social / Prepaga','obra social':'Obra Social / Prepaga','ioma':'Obra Social / Prepaga',
+  'medico':'Médico / Clínica','doctor':'Médico / Clínica','clinica':'Médico / Clínica','internacion':'Médico / Clínica','consulta medica':'Médico / Clínica',
+  'dentista':'Dentista','ortodoncia':'Dentista','odontologia':'Dentista',
+  'oftalmo':'Oftalmólogo','oculista':'Oftalmólogo',
+  'psicologo':'Psicólogo','terapeuta':'Psicólogo','psiquiatra':'Psicólogo',
+  'nutri':'Nutricionista','nutricionista':'Nutricionista','dietetica':'Dietética',
+  'kinesiologia':'Kinesiología','kinesio':'Kinesiología','fisio':'Kinesiología',
+  'analisis':'Análisis Clínicos','laboratorio':'Análisis Clínicos',
+  'optica':'Óptica','lentes':'Óptica','anteojos':'Óptica',
+  // Educación
+  'colegio':'Colegio / Escuela','escuela':'Colegio / Escuela','jardin':'Jardín de Infantes',
+  'universidad':'Universidad','facu':'Universidad','uba':'Universidad','facultad':'Universidad','uade':'Universidad','utn':'Universidad',
+  'curso':'Cursos y Capacitaciones','capacitacion':'Cursos y Capacitaciones','taller ':'Cursos y Capacitaciones',
+  'guarderia':'Guardería',
+  'ingles':'Idiomas','idioma':'Idiomas','frances':'Idiomas','portugues':'Idiomas',
+  'libro':'Libros','amazon kindle':'Libros',
+  'material escolar':'Material Escolar','cuaderno':'Material Escolar','lapiz':'Material Escolar',
+  // Ropa
+  'ropa ':'Ropa','remera':'Ropa','pantalon':'Ropa','vestido':'Ropa','camisa':'Ropa','zara':'Ropa','h&m':'Ropa',
+  'zapato':'Calzado','zapatilla':'Calzado','adidas':'Calzado','nike':'Calzado','puma ':'Calzado',
+  'ropa deportiva':'Indumentaria Deportiva',
+  // Entretenimiento
+  'cine':'Cine','pelicula':'Cine',
+  'teatro':'Teatro','obra de teatro':'Teatro',
+  'bar ':'Salidas / Bares','birra':'Salidas / Bares','cerveza':'Salidas / Bares','salida':'Salidas / Bares','boliche':'Salidas / Bares',
+  'hotel':'Viajes y Turismo','viaje':'Viajes y Turismo','turismo':'Viajes y Turismo','airbnb':'Viajes y Turismo','hostel':'Viajes y Turismo',
+  'juego':'Juegos y Videojuegos','videojuego':'Juegos y Videojuegos','playstation':'Juegos y Videojuegos','xbox':'Juegos y Videojuegos','steam':'Juegos y Videojuegos',
+  'deporte':'Deporte','futbol':'Deporte','tenis':'Deporte','natacion':'Deporte','crossfit':'Deporte',
+  'gym ':'Gimnasio','gimnasio':'Gimnasio','fitness':'Gimnasio',
+  'recital':'Música / Conciertos','concierto':'Música / Conciertos','show ':'Música / Conciertos',
+  // Tecnología
+  'celular ':'Celular','iphone':'Celular','samsung':'Celular','xiaomi':'Celular',
+  'notebook':'Computadora / Tablet','laptop':'Computadora / Tablet','computadora':'Computadora / Tablet','tablet ':'Computadora / Tablet','ipad':'Computadora / Tablet','macbook':'Computadora / Tablet',
+  'auricular':'Accesorios Tech','mouse ':'Accesorios Tech','teclado':'Accesorios Tech','cargador':'Accesorios Tech','funda':'Accesorios Tech',
+  'reparacion celular':'Reparación Tech','service celular':'Reparación Tech',
+  // Finanzas
+  'visa':'Tarjeta de Crédito','mastercard':'Tarjeta de Crédito','naranja':'Tarjeta de Crédito','amex':'Tarjeta de Crédito',
+  'prestamo':'Cuota / Préstamo','cuota prestamo':'Cuota / Préstamo',
+  'seguro de vida':'Seguro de Vida',
+  'seguro hogar':'Seguro del Hogar',
+  // Personal
+  'peluqueria':'Peluquería / Barbería','barberia':'Peluquería / Barbería','corte de pelo':'Peluquería / Barbería',
+  'estetica':'Belleza y Spa','manicura':'Belleza y Spa','spa ':'Belleza y Spa','depilacion':'Belleza y Spa',
+  'suplemento':'Suplementos','proteina':'Suplementos','creatina':'Suplementos',
+  // Mascotas
+  'veterinario':'Veterinario','vet ':'Veterinario',
+  'alimento perro':'Alimento Mascota','alimento gato':'Alimento Mascota','mascota':'Alimento Mascota',
+  'peluqueria canina':'Peluquería Canina',
+  // Regalos
+  'regalo':'Regalos','cumpleanos':'Cumpleaños y Eventos','donacion':'Donaciones','fiesta':'Cumpleaños y Eventos',
+  // Impuestos
+  'afip':'AFIP / Impuestos','monotributo':'Monotributo','abl':'ABL / Inmobiliario','inmobiliario':'ABL / Inmobiliario',
+  'municipal':'Tasas Municipales','rentas':'Ingresos Brutos',
+  // Niños
+  'panal':'Pañales y Bebé','bebe ':'Pañales y Bebé','leche bebe':'Pañales y Bebé','juguete':'Juguetes',
+};
+const suggestCategory = (name) => {
+  if (!name) return null;
+  const lower = name.toLowerCase();
+  for (const [kw, cat] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (lower.includes(kw.trim())) return cat;
+  }
+  return null;
 };
 
 const { useState, useEffect, useMemo, useRef } = React;
@@ -198,6 +337,8 @@ const App = () => {
     else document.body.classList.remove('dark');
     localStorage.setItem('platita-dark', darkMode);
   }, [darkMode]);
+
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, [view]);
 
   const showToast = (msg) => {
     setToast({ show: true, msg });
@@ -498,6 +639,7 @@ const App = () => {
             items={stats.currentMonthItems.filter(i => i.type === view)}
             categories={categories}
             onAdd={addItem}
+            onAddRecurringTemplate={view === 'recurring' ? (d) => db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('recurringTemplates').add({ name: d.name, amount: d.amount, category: d.category, dueDay: d.dueDay || 1, isAutoDebit: false, isCardPayment: false }) : undefined}
             onApplyTemplates={() => applyTemplates(view === 'income')}
             userId={user.uid}
             accent={view === 'income' ? 'emerald' : view === 'recurring' ? 'amber' : 'rose'}
@@ -663,12 +805,13 @@ const DashboardView = ({ stats, onNavigate }) => {
   );
 };
 
-const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, userId, accent, stats, navDate, cards = [] }) => {
+const ListView = ({ title, type, items, categories, onAdd, onAddRecurringTemplate, onApplyTemplates, userId, accent, stats, navDate, cards = [] }) => {
   const [newName, setNewName] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newNote, setNewNote] = useState('');
   const [showNote, setShowNote] = useState(false);
   const [newCat, setNewCat] = useState('General');
+  const [suggestedCat, setSuggestedCat] = useState(null);
   const [newDueDay, setNewDueDay] = useState('1');
   const [newDate, setNewDate] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; });
   const [searchTerm, setSearchTerm] = useState('');
@@ -676,6 +819,7 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
   const [paymentMethod, setPaymentMethod] = useState('debit');
   const [paymentCardId, setPaymentCardId] = useState('');
   const [cuotas, setCuotas] = useState('1');
+  const [askTemplate, setAskTemplate] = useState(null);
 
   const avgDaily = useMemo(() => {
     if (type !== 'daily') return null;
@@ -721,8 +865,10 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
     e.preventDefault();
     if (!newName) return;
     const extraFields = type === 'daily' ? { paymentMethod, cardId: paymentMethod === 'credit' ? (paymentCardId || null) : null, cuotas: paymentMethod === 'credit' ? (parseInt(cuotas) || 1) : 1 } : {};
-    onAdd({ name: newName, amount: parseLocaleNumber(newAmount), note: newNote || undefined, type, category: type === 'income' ? 'Ingreso' : newCat, dueDay: parseInt(newDueDay) || 1, date: type === 'daily' ? newDate : navDate.toISOString(), paid: false, ...extraFields });
-    setNewName(''); setNewAmount(''); setNewNote(''); setShowNote(false); setCuotas('1');
+    const item = { name: newName, amount: parseLocaleNumber(newAmount), note: newNote || undefined, type, category: type === 'income' ? 'Ingreso' : newCat, dueDay: parseInt(newDueDay) || 1, date: type === 'daily' ? newDate : navDate.toISOString(), paid: false, ...extraFields };
+    onAdd(item);
+    if (type === 'recurring' && onAddRecurringTemplate) setAskTemplate(item);
+    setNewName(''); setNewAmount(''); setNewNote(''); setShowNote(false); setCuotas('1'); setSuggestedCat(null);
   };
 
   return (
@@ -754,7 +900,7 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
         </div>
         {(type === 'income' || type === 'recurring') && (
           <button onClick={onApplyTemplates} className="w-full md:w-auto bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all">
-            <Icons.Plus /> Aplicar {type === 'income' ? 'Ingresos' : 'Gastos Fijos'}
+            <Icons.Plus /> {type === 'income' ? 'Aplicar Plantilla de Ingresos' : 'Aplicar Plantilla de Gastos Fijos'}
           </button>
         )}
       </div>
@@ -772,13 +918,22 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
       )}
 
       <div className="flex flex-col gap-4">
+        {askTemplate && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-3 animate-fade-in">
+            <p className="text-xs font-black text-amber-800">¿Guardar "{askTemplate.name}" en plantilla de gastos fijos?</p>
+            <div className="flex gap-2 shrink-0">
+              <button type="button" onClick={() => { onAddRecurringTemplate(askTemplate); setAskTemplate(null); }} className="px-4 py-2 bg-amber-500 text-white rounded-xl text-[10px] font-black uppercase">Sí</button>
+              <button type="button" onClick={() => setAskTemplate(null)} className="px-4 py-2 border border-amber-200 text-amber-700 rounded-xl text-[10px] font-black uppercase">No</button>
+            </div>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
           <div className="flex flex-col md:flex-row gap-4">
             <input className="flex-[2] p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none" placeholder="Descripción" value={newName} onChange={e=>{
               const val = e.target.value;
               setNewName(val);
-              const lower = val.toLowerCase();
-              for (let k in CATEGORY_SUGGESTIONS) if (lower.includes(k)) { setNewCat(CATEGORY_SUGGESTIONS[k]); break; }
+              const s = suggestCategory(val);
+              if (s) { setSuggestedCat(s); setNewCat(s); }
             }} />
             <div className="flex-1 flex gap-2">
               <input inputMode="decimal" className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xl font-black outline-none" placeholder="0,00" value={newAmount} onChange={e=>setNewAmount(formatAmountInput(e.target.value))} />
@@ -795,7 +950,7 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
                 </button>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <button type="button" onClick={() => setPaymentMethod('debit')} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase border transition-all ${paymentMethod === 'debit' ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>Débito</button>
+                <button type="button" onClick={() => setPaymentMethod('debit')} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase border transition-all ${paymentMethod === 'debit' ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>Débito / Efectivo</button>
                 <button type="button" onClick={() => { setPaymentMethod('credit'); const def = cards.find(c => c.isDefault); if (def) setPaymentCardId(def.id); }} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase border transition-all ${paymentMethod === 'credit' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>Tarjeta</button>
                 {paymentMethod === 'credit' && (
                   <>
@@ -817,11 +972,7 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
             <input className="w-full p-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none animate-fade-in" placeholder="Nota opcional..." value={newNote} onChange={e=>setNewNote(e.target.value)} />
           )}
           {type !== 'income' && (
-            <div className="flex flex-wrap gap-2 pt-2">
-              {categories.map(cat => (
-                <button key={cat} type="button" onClick={() => setNewCat(cat)} className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${newCat === cat ? 'bg-slate-900 text-white border-slate-900 shadow-md scale-105' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'}`}>{cat}</button>
-              ))}
-            </div>
+            <CategoryPicker value={newCat} onChange={setNewCat} suggested={suggestedCat} categories={categories} />
           )}
         </form>
       </div>
@@ -882,7 +1033,7 @@ const ItemCard = ({ item, accent, uid, categories, cards = [] }) => {
             <>
               <input type="date" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none" value={editData.date?.split('T')[0]} onChange={e=>setEditData({...editData, date: e.target.value + 'T12:00:00Z'})} />
               <div className="flex items-center gap-2 flex-wrap">
-                <button type="button" onClick={() => setEditData({...editData, paymentMethod: 'debit', cuotas: 1})} className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase border transition-all ${(editData.paymentMethod || 'debit') === 'debit' ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>Débito</button>
+                <button type="button" onClick={() => setEditData({...editData, paymentMethod: 'debit', cuotas: 1})} className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase border transition-all ${(editData.paymentMethod || 'debit') === 'debit' ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>Débito / Efectivo</button>
                 <button type="button" onClick={() => setEditData({...editData, paymentMethod: 'credit'})} className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase border transition-all ${editData.paymentMethod === 'credit' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>Tarjeta</button>
                 {editData.paymentMethod === 'credit' && cards.length > 0 && (
                   <select value={editData.cardId || ''} onChange={e => setEditData({...editData, cardId: e.target.value || null})} className="p-1.5 bg-slate-50 border border-slate-100 rounded-xl text-[8px] font-black outline-none">
@@ -900,9 +1051,7 @@ const ItemCard = ({ item, accent, uid, categories, cards = [] }) => {
           )}
           <input className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none" value={editData.note || ''} onChange={e=>setEditData({...editData, note: e.target.value})} placeholder="Nota (opcional)" />
           {item.type !== 'income' && (
-            <div className="flex flex-wrap gap-1">
-              {categories.map(c => <button key={c} type="button" onClick={()=>setEditData({...editData, category: c})} className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${editData.category === c ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-400'}`}>{c}</button>)}
-            </div>
+            <CategoryPicker value={editData.category || 'General'} onChange={c => setEditData({...editData, category: c})} categories={categories} />
           )}
           <div className="flex gap-2 pt-2">
             <button onClick={onSaveEdit} className="flex-1 bg-slate-900 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest">Guardar</button>
@@ -919,7 +1068,7 @@ const ItemCard = ({ item, accent, uid, categories, cards = [] }) => {
         <div className="flex-1 min-w-0 mr-2">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="text-[10px] font-black text-slate-500 uppercase">{item.name}</span>
-            <span className="text-[8px] bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 text-slate-400 font-bold uppercase">{item.category}</span>
+            {item.type !== 'income' && <span className="text-[8px] bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 text-slate-400 font-bold uppercase">{item.category}</span>}
             {item.fromPrevMonth && !item.paid && (
               <span className="text-[8px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-black uppercase tracking-wide">mes anterior</span>
             )}
@@ -964,6 +1113,37 @@ const ItemCard = ({ item, accent, uid, categories, cards = [] }) => {
   );
 };
 
+const CategoryPicker = ({ value, onChange, suggested, categories }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const filtered = search ? categories.filter(c => c.toLowerCase().includes(search.toLowerCase())) : categories;
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-black text-slate-700 hover:border-slate-300 transition-all w-full md:w-auto">
+        <span className="text-[9px] text-slate-400 uppercase tracking-widest shrink-0">Categoría</span>
+        <span className="flex-1 text-left text-slate-900">{value}</span>
+        {suggested === value && <span className="text-[8px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full font-black uppercase shrink-0">sugerida</span>}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`w-3 h-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 w-72 animate-fade-in">
+          <input autoFocus placeholder="Buscar categoría..." value={search} onChange={e => setSearch(e.target.value)}
+            className="w-full p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none mb-2" />
+          <div className="flex flex-wrap gap-1.5 max-h-52 overflow-y-auto">
+            {filtered.map(c => (
+              <button key={c} type="button" onClick={() => { onChange(c); setOpen(false); setSearch(''); }}
+                className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase border transition-all ${c === value ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-indigo-300 hover:text-indigo-600'}`}>
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SettingsSection = ({ title, minimized, setMinimized, children }) => (
   <div className="bg-white p-6 md:p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-4">
     <button onClick={() => setMinimized(!minimized)} className="w-full flex justify-between items-center py-2 group">
@@ -979,8 +1159,8 @@ const TemplateForm = ({ categories, onAdd, isIncome = false, cards = [] }) => {
   const [amount, setAmount] = useState('');
   const [cat, setCat] = useState(isIncome ? 'Ingreso' : 'General');
   const [dueDay, setDueDay] = useState('1');
-  const [isAutoDebit, setIsAutoDebit] = useState(false);
-  const [isCardPayment, setIsCardPayment] = useState(false);
+  // payType: 'cash' | 'autoDebit' | 'cardPayment'
+  const [payType, setPayType] = useState('cash');
   const [cardId, setCardId] = useState('');
 
   const handleSubmit = (e) => {
@@ -988,11 +1168,11 @@ const TemplateForm = ({ categories, onAdd, isIncome = false, cards = [] }) => {
     if (!name) return;
     onAdd({
       name, amount: parseLocaleNumber(amount), category: cat, dueDay: parseInt(dueDay) || 1,
-      isAutoDebit: !isIncome && isAutoDebit,
-      isCardPayment: !isIncome && isCardPayment,
-      cardId: !isIncome && (isAutoDebit || isCardPayment) ? (cardId || null) : null
+      isAutoDebit: !isIncome && payType === 'autoDebit',
+      isCardPayment: !isIncome && payType === 'cardPayment',
+      cardId: !isIncome && payType !== 'cash' ? (cardId || null) : null
     });
-    setName(''); setAmount(''); setIsAutoDebit(false); setIsCardPayment(false); setCardId('');
+    setName(''); setAmount(''); setPayType('cash'); setCardId('');
   };
 
   return (
@@ -1015,17 +1195,13 @@ const TemplateForm = ({ categories, onAdd, isIncome = false, cards = [] }) => {
       </div>
       {!isIncome && (
         <>
-          <div className="flex flex-wrap gap-2 py-2">
-            {categories.map(c => <button key={c} type="button" onClick={() => setCat(c)} className={`px-4 py-2 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all ${cat === c ? 'bg-amber-400 text-slate-900 border-amber-400' : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-slate-300'}`}>{c}</button>)}
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <button type="button" onClick={() => { setIsAutoDebit(!isAutoDebit); setIsCardPayment(false); }} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase border transition-all ${isAutoDebit ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-slate-300'}`}>
-              {isAutoDebit ? '✓ Débito Auto TC' : 'Débito Auto TC'}
-            </button>
-            <button type="button" onClick={() => { setIsCardPayment(!isCardPayment); setIsAutoDebit(false); }} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase border transition-all ${isCardPayment ? 'bg-rose-500 text-white border-rose-500' : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-slate-300'}`}>
-              {isCardPayment ? '✓ Pago TC' : 'Pago TC'}
-            </button>
-            {(isAutoDebit || isCardPayment) && cards.length > 0 && (
+          <CategoryPicker value={cat} onChange={setCat} categories={categories} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Pago:</span>
+            <button type="button" onClick={() => setPayType('cash')} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase border transition-all ${payType === 'cash' ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-slate-300'}`}>Efectivo / Transf.</button>
+            <button type="button" onClick={() => setPayType('autoDebit')} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase border transition-all ${payType === 'autoDebit' ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-slate-300'}`}>Débito Auto TC</button>
+            <button type="button" onClick={() => setPayType('cardPayment')} className={`px-4 py-2 rounded-full text-[9px] font-black uppercase border transition-all ${payType === 'cardPayment' ? 'bg-rose-500 text-white border-rose-500' : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-slate-300'}`}>Pago TC</button>
+            {payType !== 'cash' && cards.length > 0 && (
               <select value={cardId} onChange={e => setCardId(e.target.value)} className="p-2 bg-slate-50 text-slate-900 rounded-2xl text-xs font-black outline-none border border-slate-200">
                 <option value="">Sin tarjeta asignada</option>
                 {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -1061,15 +1237,15 @@ const TemplateCard = ({ template, onDelete, onUpdate, categories, isIncome, card
         {!isIncome && (
           <>
             <div className="flex flex-wrap gap-1">
-              {categories.map(c => <button key={c} type="button" onClick={()=>setEditData({...editData, category: c})} className={`px-2 py-1 rounded-full text-[7px] font-black uppercase border transition-all ${editData.category === c ? 'bg-amber-400 text-slate-900 border-amber-400' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>{c}</button>)}
+              <CategoryPicker value={editData.category || 'General'} onChange={c => setEditData({...editData, category: c})} categories={categories} />
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <button type="button" onClick={() => setEditData({...editData, isAutoDebit: !editData.isAutoDebit, isCardPayment: false})} className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase border transition-all ${editData.isAutoDebit ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
-                {editData.isAutoDebit ? '✓ Débito Auto TC' : 'Débito Auto TC'}
-              </button>
-              <button type="button" onClick={() => setEditData({...editData, isCardPayment: !editData.isCardPayment, isAutoDebit: false})} className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase border transition-all ${editData.isCardPayment ? 'bg-rose-500 text-white border-rose-500' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
-                {editData.isCardPayment ? '✓ Pago TC' : 'Pago TC'}
-              </button>
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Pago:</span>
+              {[{id:'cash',label:'Efectivo / Transf.',color:'slate'},{id:'autoDebit',label:'Débito Auto TC',color:'indigo'},{id:'cardPayment',label:'Pago TC',color:'rose'}].map(opt => {
+                const active = opt.id === 'autoDebit' ? editData.isAutoDebit : opt.id === 'cardPayment' ? editData.isCardPayment : !editData.isAutoDebit && !editData.isCardPayment;
+                const colorMap = { slate: active ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-400 border-slate-200', indigo: active ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-slate-50 text-slate-400 border-slate-200', rose: active ? 'bg-rose-500 text-white border-rose-500' : 'bg-slate-50 text-slate-400 border-slate-200' };
+                return <button key={opt.id} type="button" onClick={() => setEditData({...editData, isAutoDebit: opt.id==='autoDebit', isCardPayment: opt.id==='cardPayment'})} className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase border transition-all ${colorMap[opt.color]}`}>{opt.label}</button>;
+              })}
               {(editData.isAutoDebit || editData.isCardPayment) && cards.length > 0 && (
                 <select value={editData.cardId || ''} onChange={e => setEditData({...editData, cardId: e.target.value || null})} className="p-1.5 bg-slate-50 text-slate-900 rounded-xl text-xs font-black outline-none border border-slate-200">
                   <option value="">Sin tarjeta</option>
