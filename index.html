@@ -417,6 +417,12 @@ const App = () => {
         creditByCard[i.cardId] = (creditByCard[i.cardId] || 0) + installment;
       }
     });
+    prevMonthItems.forEach(i => {
+      if (i.type === 'recurring' && i.isCardPayment && i.cardId && i.paid && i.paymentType === 'partial') {
+        const carried = Math.max(0, (parseFloat(i.amount) || 0) - (parseFloat(i.paidAmount) || 0));
+        if (carried > 0) creditByCard[i.cardId] = (creditByCard[i.cardId] || 0) + carried;
+      }
+    });
 
     const prevIncome = prevMonthItems.filter(i => i.type === 'income' && i.paid).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
     const prevSpent = prevMonthItems.filter(i => i.type !== 'income').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
@@ -1168,7 +1174,10 @@ const ItemCard = ({ item, accent, uid, categories, cards = [] }) => {
               <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-black uppercase tracking-wide">TC{cardName ? ` · ${cardName}` : ''}{item.cuotas > 1 ? ` · ${item.cuotas}c` : ''}</span>
             )}
           </div>
-          <p className="text-xl font-black text-slate-900">{formatCurrency(item.amount)}</p>
+          {item.paid && item.paymentType === 'partial'
+            ? <p className="text-xl font-black text-slate-900"><span className="text-emerald-600">{formatCurrency(item.paidAmount)}</span><span className="text-slate-400 text-sm font-bold"> / {formatCurrency(item.amount)}</span></p>
+            : <p className="text-xl font-black text-slate-900">{formatCurrency(item.amount)}</p>
+          }
           {item.note && <p className="text-[9px] text-slate-400 mt-0.5 italic leading-relaxed">{item.note}</p>}
           {item.type === 'recurring' && !item.isAutoDebit && <p className="text-xs font-black text-amber-500 uppercase mt-1">Día {item.dueDay}</p>}
           {item.type === 'daily' && <p className="text-xs font-black text-slate-400 uppercase mt-1">{new Date(item.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</p>}
