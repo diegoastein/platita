@@ -254,7 +254,10 @@ const App = () => {
     const creditByCard = {};
     currentMonthItems.forEach(i => {
       if (i.isAutoDebit && i.cardId) creditByCard[i.cardId] = (creditByCard[i.cardId] || 0) + (parseFloat(i.amount) || 0);
-      if (i.type === 'daily' && i.paymentMethod === 'credit' && i.cardId) creditByCard[i.cardId] = (creditByCard[i.cardId] || 0) + (parseFloat(i.amount) || 0);
+      if (i.type === 'daily' && i.paymentMethod === 'credit' && i.cardId) {
+        const installment = (parseFloat(i.amount) || 0) / (i.cuotas || 1);
+        creditByCard[i.cardId] = (creditByCard[i.cardId] || 0) + installment;
+      }
     });
 
     const prevIncome = prevMonthItems.filter(i => i.type === 'income' && i.paid).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
@@ -649,6 +652,7 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
   const [filterCat, setFilterCat] = useState('Todas');
   const [paymentMethod, setPaymentMethod] = useState('debit');
   const [paymentCardId, setPaymentCardId] = useState('');
+  const [cuotas, setCuotas] = useState('1');
 
   const avgDaily = useMemo(() => {
     if (type !== 'daily') return null;
@@ -693,9 +697,9 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!newName) return;
-    const extraFields = type === 'daily' ? { paymentMethod, cardId: paymentMethod === 'credit' ? (paymentCardId || null) : null } : {};
+    const extraFields = type === 'daily' ? { paymentMethod, cardId: paymentMethod === 'credit' ? (paymentCardId || null) : null, cuotas: paymentMethod === 'credit' ? (parseInt(cuotas) || 1) : 1 } : {};
     onAdd({ name: newName, amount: parseLocaleNumber(newAmount), note: newNote || undefined, type, category: type === 'income' ? 'Ingreso' : newCat, dueDay: parseInt(newDueDay) || 1, date: type === 'daily' ? newDate : navDate.toISOString(), paid: false, ...extraFields });
-    setNewName(''); setNewAmount(''); setNewNote(''); setShowNote(false);
+    setNewName(''); setNewAmount(''); setNewNote(''); setShowNote(false); setCuotas('1');
   };
 
   return (
@@ -770,11 +774,18 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
               <div className="flex items-center gap-2 flex-wrap">
                 <button type="button" onClick={() => setPaymentMethod('debit')} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase border transition-all ${paymentMethod === 'debit' ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>Débito</button>
                 <button type="button" onClick={() => setPaymentMethod('credit')} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase border transition-all ${paymentMethod === 'credit' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>Tarjeta</button>
-                {paymentMethod === 'credit' && cards.length > 0 && (
-                  <select value={paymentCardId} onChange={e => setPaymentCardId(e.target.value)} className="p-2 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-black outline-none">
-                    <option value="">Sin tarjeta</option>
-                    {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                {paymentMethod === 'credit' && (
+                  <>
+                    {cards.length > 0 && (
+                      <select value={paymentCardId} onChange={e => setPaymentCardId(e.target.value)} className="p-2 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-black outline-none">
+                        <option value="">Sin tarjeta</option>
+                        {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    )}
+                    <select value={cuotas} onChange={e => setCuotas(e.target.value)} className="p-2 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-black outline-none">
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(n => <option key={n} value={n}>{n === 1 ? '1 cuota' : `${n} cuotas`}</option>)}
+                    </select>
+                  </>
                 )}
               </div>
             </div>
@@ -840,7 +851,26 @@ const ItemCard = ({ item, accent, uid, categories, cards = [] }) => {
             <input inputMode="decimal" className="flex-1 p-3 bg-slate-50 border border-slate-100 rounded-xl text-base font-black outline-none" value={editData.amount} onChange={e=>setEditData({...editData, amount: formatAmountInput(e.target.value), fromPrevMonth: false})} placeholder="0,00" />
             {item.type === 'recurring' && <input type="number" min="1" max="31" className="w-16 p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs text-center outline-none" value={editData.dueDay} onChange={e=>setEditData({...editData, dueDay: e.target.value})} />}
           </div>
-          {item.type === 'daily' && <input type="date" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none" value={editData.date?.split('T')[0]} onChange={e=>setEditData({...editData, date: e.target.value + 'T12:00:00Z'})} />}
+          {item.type === 'daily' && (
+            <>
+              <input type="date" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none" value={editData.date?.split('T')[0]} onChange={e=>setEditData({...editData, date: e.target.value + 'T12:00:00Z'})} />
+              <div className="flex items-center gap-2 flex-wrap">
+                <button type="button" onClick={() => setEditData({...editData, paymentMethod: 'debit', cuotas: 1})} className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase border transition-all ${(editData.paymentMethod || 'debit') === 'debit' ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>Débito</button>
+                <button type="button" onClick={() => setEditData({...editData, paymentMethod: 'credit'})} className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase border transition-all ${editData.paymentMethod === 'credit' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>Tarjeta</button>
+                {editData.paymentMethod === 'credit' && cards.length > 0 && (
+                  <select value={editData.cardId || ''} onChange={e => setEditData({...editData, cardId: e.target.value || null})} className="p-1.5 bg-slate-50 border border-slate-100 rounded-xl text-[8px] font-black outline-none">
+                    <option value="">Sin tarjeta</option>
+                    {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                )}
+                {editData.paymentMethod === 'credit' && (
+                  <select value={editData.cuotas || 1} onChange={e => setEditData({...editData, cuotas: parseInt(e.target.value)})} className="p-1.5 bg-slate-50 border border-slate-100 rounded-xl text-[8px] font-black outline-none">
+                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(n => <option key={n} value={n}>{n === 1 ? '1 cuota' : `${n}c`}</option>)}
+                  </select>
+                )}
+              </div>
+            </>
+          )}
           <input className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none" value={editData.note || ''} onChange={e=>setEditData({...editData, note: e.target.value})} placeholder="Nota (opcional)" />
           {item.type !== 'income' && (
             <div className="flex flex-wrap gap-1">
@@ -870,7 +900,7 @@ const ItemCard = ({ item, accent, uid, categories, cards = [] }) => {
               <span className="text-[8px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-black uppercase tracking-wide">débito auto{cardName ? ` · ${cardName}` : ''}</span>
             )}
             {item.type === 'daily' && item.paymentMethod === 'credit' && (
-              <span className="text-[8px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-black uppercase tracking-wide">TC{cardName ? ` · ${cardName}` : ''}</span>
+              <span className="text-[8px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-black uppercase tracking-wide">TC{cardName ? ` · ${cardName}` : ''}{item.cuotas > 1 ? ` · ${item.cuotas}c` : ''}</span>
             )}
           </div>
           <p className="text-xl font-black text-slate-900">{formatCurrency(item.amount)}</p>
