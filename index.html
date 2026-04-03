@@ -104,7 +104,21 @@ const formatCurrency = (val) => new Intl.NumberFormat('es-AR', { style: 'currenc
 const parseLocaleNumber = (str) => {
   if (typeof str === 'number') return str;
   if (!str) return 0;
-  const clean = str.toString().replace(/\./g, '').replace(',', '.');
+  const s = str.toString().trim();
+  // Detectar si usa punto como decimal (ej: "1500.50") o coma como decimal (ej: "1500,50" o "1.500,50")
+  const hasComma = s.includes(',');
+  const dotCount = (s.match(/\./g) || []).length;
+  let clean;
+  if (hasComma) {
+    // Formato argentino: puntos = miles, coma = decimal
+    clean = s.replace(/\./g, '').replace(',', '.');
+  } else if (dotCount === 1) {
+    // Un solo punto: tratar como decimal (ej: "1500.50")
+    clean = s;
+  } else {
+    // Múltiples puntos: son separadores de miles (ej: "1.500.000")
+    clean = s.replace(/\./g, '');
+  }
   const num = parseFloat(clean);
   return isNaN(num) ? 0 : num;
 };
@@ -195,9 +209,16 @@ const App = () => {
   const applyTemplates = async (isIncome = false) => {
     const targetList = isIncome ? incomeTemplates : templates;
     if (!user || targetList.length === 0) return;
+    const targetType = isIncome ? 'income' : 'recurring';
+    const alreadyApplied = stats.currentMonthItems.some(i => i.type === targetType);
+    if (alreadyApplied) {
+      showToast("Ya hay registros para este mes");
+      return;
+    }
     const batch = db.batch();
     const colRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions');
-    const currentMonthStr = navDate.toISOString().split('T')[0].substring(0, 7);
+    const d = new Date(navDate);
+    const currentMonthStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
     targetList.forEach(t => {
       const newDoc = colRef.doc();
       const targetDateStr = `${currentMonthStr}-${String(t.dueDay || 1).padStart(2, '0')}T12:00:00Z`;
@@ -252,9 +273,9 @@ const App = () => {
           <div className="md:grid md:grid-cols-2 md:gap-8 items-center">
             <div className="mb-6 md:mb-0">
               <div className="flex items-center justify-between bg-slate-100 p-1 rounded-full mb-5">
-                <button onClick={() => setNavDate(new Date(navDate.setUTCMonth(navDate.getUTCMonth() - 1)))} className="p-2 hover:bg-white rounded-full transition-all"><Icons.ChevronLeft /></button>
+                <button onClick={() => setNavDate(prev => { const d = new Date(prev); d.setUTCMonth(d.getUTCMonth() - 1); return d; })} className="p-2 hover:bg-white rounded-full transition-all"><Icons.ChevronLeft /></button>
                 <span className="text-[12px] md:text-sm font-black text-slate-700 uppercase tracking-widest">{navDate.toLocaleString('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</span>
-                <button onClick={() => setNavDate(new Date(navDate.setUTCMonth(navDate.getUTCMonth() + 1)))} className="p-2 hover:bg-white rounded-full transition-all"><Icons.ChevronRight /></button>
+                <button onClick={() => setNavDate(prev => { const d = new Date(prev); d.setUTCMonth(d.getUTCMonth() + 1); return d; })} className="p-2 hover:bg-white rounded-full transition-all"><Icons.ChevronRight /></button>
               </div>
               <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-xl relative overflow-hidden flex flex-col items-center">
                 <button onClick={() => setHideBalance(!hideBalance)} className="absolute top-4 right-6 text-amber-400 hover:text-amber-300 p-2 transition-all">
@@ -343,13 +364,15 @@ const App = () => {
                     {c}
                     {!DEFAULT_CATEGORIES.includes(c) && <button onClick={() => {
                       const nc = categories.filter(cat => cat !== c);
+                      setCategories(nc);
                       db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('settings').doc('categories').set({ custom: nc.filter(x => !DEFAULT_CATEGORIES.includes(x)) });
                     }} className="text-slate-300 hover:text-rose-500"><Icons.Close /></button>}
                   </span>
                 ))}
               </div>
-              <form onSubmit={e => { e.preventDefault(); const val = e.target.cat.value; if(val){
+              <form onSubmit={e => { e.preventDefault(); const val = e.target.cat.value.trim(); if(val){
                 const nc = [...categories, val];
+                setCategories(nc);
                 db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('settings').doc('categories').set({ custom: nc.filter(x => !DEFAULT_CATEGORIES.includes(x)) });
               } e.target.reset(); }} className="flex gap-2 max-w-sm pt-2">
                 <input name="cat" className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none" placeholder="Nueva etiqueta..." />
@@ -431,7 +454,7 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
   const [newAmount, setNewAmount] = useState('');
   const [newCat, setNewCat] = useState('General');
   const [newDueDay, setNewDueDay] = useState('1');
-  const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newDate, setNewDate] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; });
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredItems = useMemo(() => {
@@ -483,7 +506,7 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
               for (let k in CATEGORY_SUGGESTIONS) if (lower.includes(k)) { setNewCat(CATEGORY_SUGGESTIONS[k]); break; }
             }} />
             <div className="flex-1 flex gap-2">
-              <input inputmode="decimal" className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black outline-none" placeholder="$ 0,00" value={newAmount} onChange={e=>setNewAmount(e.target.value)} />
+              <input inputMode="decimal" className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black outline-none" placeholder="$ 0,00" value={newAmount} onChange={e=>setNewAmount(e.target.value)} />
               {type === 'recurring' && <input type="number" min="1" max="31" className="w-20 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-center outline-none" value={newDueDay} onChange={e=>setNewDueDay(e.target.value)} />}
               <button className="bg-slate-900 text-white px-8 rounded-2xl font-black shadow-lg"><Icons.Plus /></button>
             </div>
@@ -532,7 +555,7 @@ const ItemCard = ({ item, accent, uid, categories }) => {
         <div className="space-y-3">
           <input className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none" value={editData.name} onChange={e=>setEditData({...editData, name: e.target.value})} placeholder="Descripción" />
           <div className="flex gap-2">
-            <input inputmode="decimal" className="flex-1 p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black outline-none" value={editData.amount} onChange={e=>setEditData({...editData, amount: e.target.value})} placeholder="Monto" />
+            <input inputMode="decimal" className="flex-1 p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black outline-none" value={editData.amount} onChange={e=>setEditData({...editData, amount: e.target.value})} placeholder="Monto" />
             {item.type === 'recurring' && <input type="number" min="1" max="31" className="w-16 p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs text-center outline-none" value={editData.dueDay} onChange={e=>setEditData({...editData, dueDay: e.target.value})} />}
           </div>
           {item.type === 'daily' && <input type="date" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs outline-none" value={editData.date?.split('T')[0]} onChange={e=>setEditData({...editData, date: e.target.value + 'T12:00:00Z'})} />}
@@ -576,7 +599,7 @@ const ItemCard = ({ item, accent, uid, categories }) => {
       </div>
       {showPartial && (
         <div className="flex gap-2 p-3 bg-amber-50 rounded-2xl animate-fade-in">
-          <input inputmode="decimal" className="flex-1 p-3 bg-white border border-amber-200 rounded-xl text-xs font-black outline-none" placeholder="Pago parcial..." value={partialVal} onChange={e=>setPartialVal(e.target.value)} />
+          <input inputMode="decimal" className="flex-1 p-3 bg-white border border-amber-200 rounded-xl text-xs font-black outline-none" placeholder="Pago parcial..." value={partialVal} onChange={e=>setPartialVal(e.target.value)} />
           <button onClick={() => { handleUpdate({ paid: true, paymentType: 'partial', paidAmount: parseLocaleNumber(partialVal) }); setShowPartial(false); }} className="bg-amber-500 text-white px-4 rounded-xl text-[10px] font-black uppercase">Ok</button>
         </div>
       )}
@@ -610,7 +633,7 @@ const TemplateForm = ({ categories, onAdd, isIncome = false }) => {
         <div className="flex gap-2">
           <div className="flex-1 flex flex-col gap-1">
             <label className="text-amber-300 text-[9px] font-black uppercase ml-1 tracking-widest">Monto</label>
-            <input inputmode="decimal" className="p-4 bg-white/10 text-white placeholder-white/30 rounded-2xl text-sm outline-none border border-white/5" placeholder="$ 0,00" value={amount} onChange={e=>setAmount(e.target.value)} />
+            <input inputMode="decimal" className="p-4 bg-white/10 text-white placeholder-white/30 rounded-2xl text-sm outline-none border border-white/5" placeholder="$ 0,00" value={amount} onChange={e=>setAmount(e.target.value)} />
           </div>
           <div className="w-20 flex flex-col gap-1">
             <label className="text-amber-300 text-[9px] font-black uppercase ml-1 text-center tracking-widest">Día</label>
@@ -646,7 +669,7 @@ const TemplateCard = ({ template, onDelete, onUpdate, categories, isIncome }) =>
       <div className="p-5 bg-slate-900 border border-white/5 rounded-[2rem] shadow-xl space-y-3 animate-fade-in">
         <input className="w-full p-3 bg-white/10 text-white rounded-xl text-xs outline-none border border-white/10" value={editData.name} onChange={e=>setEditData({...editData, name: e.target.value})} />
         <div className="flex gap-2">
-          <input inputmode="decimal" className="flex-1 p-3 bg-white/10 text-white rounded-xl text-xs font-black outline-none border border-white/10" value={editData.amount} onChange={e=>setEditData({...editData, amount: e.target.value})} />
+          <input inputMode="decimal" className="flex-1 p-3 bg-white/10 text-white rounded-xl text-xs font-black outline-none border border-white/10" value={editData.amount} onChange={e=>setEditData({...editData, amount: e.target.value})} />
           <input type="number" min="1" max="31" className="w-16 p-3 bg-white/10 text-white rounded-xl text-xs text-center outline-none border border-white/10" value={editData.dueDay} onChange={e=>setEditData({...editData, dueDay: e.target.value})} />
         </div>
         {!isIncome && (
@@ -693,7 +716,7 @@ const AnalysisView = ({ currentMonthItems, stats, items, navDate, isSmall }) => 
 
   useEffect(() => {
     if (recurringNames.length > 0 && !selectedRecurringName) setSelectedRecurringName(recurringNames[0]);
-  }, [recurringNames]);
+  }, [recurringNames, selectedRecurringName]);
 
   const byCategory = useMemo(() => {
     const cats = {};
