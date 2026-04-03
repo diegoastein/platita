@@ -173,6 +173,10 @@ const App = () => {
   const [authError, setAuthError] = useState(null);
   const [minIncomeT, setMinIncomeT] = useState(true);
   const [minExpenseT, setMinExpenseT] = useState(true);
+  const [minBudgets, setMinBudgets] = useState(true);
+  const [minLabels, setMinLabels] = useState(true);
+  const [minPrefs, setMinPrefs] = useState(true);
+  const [minCards, setMinCards] = useState(true);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('platita-dark') === 'true');
   const [cards, setCards] = useState([]);
 
@@ -277,13 +281,17 @@ const App = () => {
   const addItem = async (data) => {
     if (!user) return;
     const finalDate = data.date ? data.date.split('T')[0] + 'T12:00:00Z' : new Date().toISOString();
-    await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions').add({
-      ...data,
-      paid: data.type === 'daily' ? true : data.paid,
-      date: finalDate,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    showToast("Registro agregado");
+    const payload = Object.fromEntries(
+      Object.entries({ ...data, paid: data.type === 'daily' ? true : data.paid, date: finalDate, createdAt: firebase.firestore.FieldValue.serverTimestamp() })
+        .filter(([, v]) => v !== undefined)
+    );
+    try {
+      await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions').add(payload);
+      showToast("Registro agregado");
+    } catch(err) {
+      showToast("Error al guardar: " + err.message);
+      console.error(err);
+    }
   };
 
   const applyTemplates = async (isIncome = false) => {
@@ -508,11 +516,12 @@ const App = () => {
             </SettingsSection>
 
             {/* TARJETAS DE CRÉDITO */}
-            <CardsSection cards={cards} onSave={saveCards} />
+            <SettingsSection title="Tarjetas de Crédito" minimized={minCards} setMinimized={setMinCards}>
+              <CardsSection cards={cards} onSave={saveCards} />
+            </SettingsSection>
 
             {/* PRESUPUESTOS POR CATEGORÍA */}
-            <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-6">
-              <h2 className="text-xl font-black text-slate-900 tracking-tight">Presupuestos por Categoría</h2>
+            <SettingsSection title="Presupuestos por Categoría" minimized={minBudgets} setMinimized={setMinBudgets}>
               <p className="text-xs text-slate-500 font-medium leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 <strong className="text-slate-900 block mb-1 text-[10px] uppercase font-black tracking-widest text-indigo-600">¿Para qué sirven?</strong>
                 Definí un límite mensual por categoría. Se visualiza en Análisis con una barra de progreso y alerta si lo superás.
@@ -538,11 +547,10 @@ const App = () => {
                   </div>
                 ))}
               </div>
-            </div>
+            </SettingsSection>
 
             {/* ETIQUETAS */}
-            <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-6">
-              <h2 className="text-xl font-black text-slate-900 tracking-tight">Etiquetas</h2>
+            <SettingsSection title="Etiquetas" minimized={minLabels} setMinimized={setMinLabels}>
               <p className="text-xs text-slate-500 font-medium leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 <strong className="text-slate-900 block mb-1 text-[10px] uppercase font-black tracking-widest text-indigo-600">¿Qué son las etiquetas?</strong>
                 Clasifican tus registros para los reportes visuales de Análisis. El sistema sugiere etiquetas automáticamente según la descripción (ej: "Luz" sugiere "Servicios").
@@ -567,11 +575,10 @@ const App = () => {
                 <input name="cat" className="flex-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none" placeholder="Nueva etiqueta..." />
                 <button type="submit" className="bg-slate-900 text-white px-6 rounded-2xl font-black shadow-lg">+</button>
               </form>
-            </div>
+            </SettingsSection>
 
             {/* PREFERENCIAS */}
-            <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-4">
-              <h2 className="text-xl font-black text-slate-900 tracking-tight">Preferencias</h2>
+            <SettingsSection title="Preferencias" minimized={minPrefs} setMinimized={setMinPrefs}>
               <div className="flex flex-col md:flex-row gap-4">
                 <button onClick={exportCSV} className="flex-1 flex items-center justify-center gap-3 bg-slate-50 border border-slate-100 p-5 rounded-2xl text-sm font-black text-slate-700 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 active:scale-95 transition-all">
                   <Icons.Download /> Exportar mes actual (CSV)
@@ -580,7 +587,7 @@ const App = () => {
                   {darkMode ? <Icons.Sun /> : <Icons.Moon />} {darkMode ? 'Modo Claro' : 'Modo Oscuro'}
                 </button>
               </div>
-            </div>
+            </SettingsSection>
           </div>
         )}
       </main>
@@ -1085,8 +1092,7 @@ const CardsSection = ({ cards, onSave }) => {
   };
 
   return (
-    <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 space-y-6">
-      <h2 className="text-xl font-black text-slate-900 tracking-tight">Tarjetas de Crédito</h2>
+    <div className="space-y-4">
       <p className="text-xs text-slate-500 font-medium leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
         <strong className="text-slate-900 block mb-1 text-[10px] uppercase font-black tracking-widest text-indigo-600">¿Para qué sirven?</strong>
         Registrá tus tarjetas para asociar débitos automáticos y gastos con TC. El sistema estimará el total de cada resumen.
