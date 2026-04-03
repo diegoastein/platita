@@ -936,7 +936,7 @@ const ListView = ({ title, type, items, categories, onAdd, onAddRecurringTemplat
         <form onSubmit={handleSubmit} className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-[2] flex flex-col gap-1">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">
                 {type === 'income' ? 'Fuente de ingreso' : type === 'recurring' ? 'Descripción del gasto' : 'Descripción del gasto'}
               </label>
               <input className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none focus:border-indigo-200 transition-all"
@@ -950,27 +950,30 @@ const ListView = ({ title, type, items, categories, onAdd, onAddRecurringTemplat
             </div>
             <div className="flex-1 flex gap-2 items-end">
               <div className="flex-1 flex flex-col gap-1">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">
                   {type === 'recurring' ? 'Monto mensual' : 'Monto'}
                 </label>
                 <input inputMode="decimal" className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xl font-black outline-none focus:border-indigo-200 transition-all" placeholder="0,00" value={newAmount} onChange={e=>setNewAmount(formatAmountInput(e.target.value))} />
               </div>
               {type === 'recurring' && (
                 <div className="w-20 flex flex-col gap-1">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center" title="Día del mes en que vence o se debita (1 al 31)">Día venc.</label>
-                  <input type="number" min="1" max="31" title="Día del mes en que vence o se debita (1 al 31)" className="w-20 p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black text-center outline-none focus:border-indigo-200 transition-all" value={newDueDay} onChange={e=>setNewDueDay(e.target.value)} />
+                  <label className={`text-[9px] font-black uppercase tracking-widest text-center ${recurPayType === 'autoDebit' ? 'text-slate-300' : 'text-slate-400'}`} title="Día del mes en que vence (1 al 31)">Día venc.</label>
+                  <input type="number" min="1" max="31" title="Día del mes en que vence (1 al 31)" disabled={recurPayType === 'autoDebit'} className={`w-20 p-4 border rounded-2xl text-sm font-black text-center outline-none transition-all ${recurPayType === 'autoDebit' ? 'bg-slate-100 border-slate-100 text-slate-300 cursor-not-allowed' : 'bg-slate-50 border-slate-100 focus:border-indigo-200'}`} value={newDueDay} onChange={e=>setNewDueDay(e.target.value)} />
                 </div>
               )}
-              <button type="submit" className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black shadow-lg self-end"><Icons.Plus /></button>
+              <button type="submit" className="bg-slate-900 text-white px-5 py-4 rounded-2xl font-black shadow-lg self-end shrink-0 flex flex-col items-center gap-0.5 active:scale-95 transition-all">
+                <Icons.Plus />
+                <span className="text-[8px] uppercase tracking-widest">Agregar</span>
+              </button>
             </div>
           </div>
           {type === 'recurring' && (
             <div className="flex flex-col gap-2">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Forma de pago</span>
+              <span className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Forma de pago</span>
               <div className="flex items-center gap-2 flex-wrap">
-                <button type="button" onClick={() => { setRecurPayType('cash'); setRecurCardId(''); }} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase border transition-all ${recurPayType === 'cash' ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'}`}>Efectivo / Transf.</button>
-                <button type="button" onClick={() => { setRecurPayType('autoDebit'); const def = cards.find(c => c.isDefault); if (def) setRecurCardId(def.id); }} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase border transition-all ${recurPayType === 'autoDebit' ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'}`}>Débito Auto TC</button>
-                <button type="button" onClick={() => { setRecurPayType('cardPayment'); const def = cards.find(c => c.isDefault); if (def) setRecurCardId(def.id); }} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase border transition-all ${recurPayType === 'cardPayment' ? 'bg-rose-500 text-white border-rose-500' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'}`}>Pago TC</button>
+                <button type="button" onClick={() => { setRecurPayType('cash'); setRecurCardId(''); }} className={`px-4 py-2 rounded-full text-xs font-black uppercase border transition-all ${recurPayType === 'cash' ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'}`}>Efectivo / Transf.</button>
+                <button type="button" onClick={() => { setRecurPayType('autoDebit'); const def = cards.find(c => c.isDefault); if (def) setRecurCardId(def.id); }} className={`px-4 py-2 rounded-full text-xs font-black uppercase border transition-all ${recurPayType === 'autoDebit' ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'}`}>Débito Auto TC</button>
+                <button type="button" onClick={() => { setRecurPayType('cardPayment'); const def = cards.find(c => c.isDefault); if (def) setRecurCardId(def.id); }} className={`px-4 py-2 rounded-full text-xs font-black uppercase border transition-all ${recurPayType === 'cardPayment' ? 'bg-rose-500 text-white border-rose-500' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'}`}>Pago TC</button>
                 {recurPayType !== 'cash' && cards.length > 0 && (
                   <select value={recurCardId} onChange={e => setRecurCardId(e.target.value)} className="p-2 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-black outline-none">
                     <option value="">Sin tarjeta asignada</option>
@@ -978,8 +981,8 @@ const ListView = ({ title, type, items, categories, onAdd, onAddRecurringTemplat
                   </select>
                 )}
               </div>
-              {recurPayType === 'autoDebit' && <p className="text-[9px] text-indigo-400 font-medium ml-1">Servicio que se debita automáticamente de la tarjeta cada mes (ej. Netflix, Spotify)</p>}
-              {recurPayType === 'cardPayment' && <p className="text-[9px] text-rose-400 font-medium ml-1">Pago del resumen o saldo de tarjeta de crédito</p>}
+              {recurPayType === 'autoDebit' && <p className="text-xs text-indigo-400 font-medium ml-1">Servicio que se debita automáticamente de la tarjeta cada mes (ej. Netflix, Spotify)</p>}
+              {recurPayType === 'cardPayment' && <p className="text-xs text-rose-400 font-medium ml-1">Pago del resumen o saldo de tarjeta de crédito</p>}
             </div>
           )}
           {type === 'daily' && (
@@ -1147,28 +1150,28 @@ const ItemCard = ({ item, accent, uid, categories, cards = [] }) => {
       <div className="flex justify-between items-start">
         <div className="flex-1 min-w-0 mr-2">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-[10px] font-black text-slate-500 uppercase">{item.name}</span>
-            {item.type !== 'income' && <span className="text-[8px] bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 text-slate-400 font-bold uppercase">{item.category}</span>}
+            <span className="text-xs font-black text-slate-700 uppercase">{item.name}</span>
+            {item.type !== 'income' && <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 text-slate-500 font-bold uppercase">{item.category}</span>}
             {item.fromPrevMonth && !item.paid && (
-              <span className="text-[8px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-black uppercase tracking-wide">mes anterior</span>
+              <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-black uppercase tracking-wide">mes anterior</span>
             )}
             {item.isAutoDebit && (
-              <span className="text-[8px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-black uppercase tracking-wide">débito auto{cardName ? ` · ${cardName}` : ''}</span>
+              <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-black uppercase tracking-wide">débito auto{cardName ? ` · ${cardName}` : ''}</span>
             )}
             {item.type === 'recurring' && item.isCardPayment && (
-              <span className="text-[8px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-black uppercase tracking-wide">pago TC{cardName ? ` · ${cardName}` : ''}</span>
+              <span className="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-black uppercase tracking-wide">pago TC{cardName ? ` · ${cardName}` : ''}</span>
             )}
             {item.type === 'recurring' && !item.isAutoDebit && !item.isCardPayment && (
-              <span className="text-[8px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-black uppercase tracking-wide">efectivo / transf.</span>
+              <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-black uppercase tracking-wide">efectivo / transf.</span>
             )}
             {item.type === 'daily' && item.paymentMethod === 'credit' && (
-              <span className="text-[8px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-black uppercase tracking-wide">TC{cardName ? ` · ${cardName}` : ''}{item.cuotas > 1 ? ` · ${item.cuotas}c` : ''}</span>
+              <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-black uppercase tracking-wide">TC{cardName ? ` · ${cardName}` : ''}{item.cuotas > 1 ? ` · ${item.cuotas}c` : ''}</span>
             )}
           </div>
           <p className="text-xl font-black text-slate-900">{formatCurrency(item.amount)}</p>
           {item.note && <p className="text-[9px] text-slate-400 mt-0.5 italic leading-relaxed">{item.note}</p>}
-          {item.type === 'recurring' && <p className="text-[9px] font-black text-amber-500 uppercase mt-1">Día {item.dueDay}</p>}
-          {item.type === 'daily' && <p className="text-[9px] font-black text-slate-400 uppercase mt-1">{new Date(item.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</p>}
+          {item.type === 'recurring' && !item.isAutoDebit && <p className="text-xs font-black text-amber-500 uppercase mt-1">Día {item.dueDay}</p>}
+          {item.type === 'daily' && <p className="text-xs font-black text-slate-400 uppercase mt-1">{new Date(item.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</p>}
         </div>
         <div className="flex gap-2 shrink-0 flex-wrap justify-end">
           {item.type !== 'daily' && !item.paid && !item.isAutoDebit && (
