@@ -418,7 +418,7 @@ const App = () => {
       }
     });
     prevMonthItems.forEach(i => {
-      if (i.type === 'recurring' && i.isCardPayment && i.cardId && i.paid && i.paymentType === 'partial') {
+      if (i.type === 'recurring' && !i.isAutoDebit && i.cardId && i.paid && i.paymentType === 'partial') {
         const carried = Math.max(0, (parseFloat(i.amount) || 0) - (parseFloat(i.paidAmount) || 0));
         if (carried > 0) creditByCard[i.cardId] = (creditByCard[i.cardId] || 0) + carried;
       }
@@ -493,6 +493,7 @@ const App = () => {
         paid: false,
         fromPrevMonth: !!prevItem,
         isAutoDebit: t.isAutoDebit || false,
+        isCardPayment: t.isCardPayment || false,
         cardId: t.cardId || null,
         date: targetDateStr,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1621,7 +1622,7 @@ const AnalysisView = ({ currentMonthItems, stats, items, navDate, isSmall, budge
         const cardData = cards.map(card => {
           const autoDebits = currentMonthItems.filter(i => i.isAutoDebit && i.cardId === card.id);
           const dailyCredits = currentMonthItems.filter(i => i.type === 'daily' && i.paymentMethod === 'credit' && i.cardId === card.id);
-          const prevBalItems = prevMonthItems.filter(i => i.type === 'recurring' && i.isCardPayment && i.cardId === card.id && i.paid && i.paymentType === 'partial');
+          const prevBalItems = prevMonthItems.filter(i => i.type === 'recurring' && !i.isAutoDebit && i.cardId === card.id && i.paid && i.paymentType === 'partial');
           const autoDebitTotal = autoDebits.reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
           const dailyCreditTotal = dailyCredits.reduce((a, c) => a + (parseFloat(c.amount) || 0) / (c.cuotas || 1), 0);
           const prevBal = prevBalItems.reduce((a, c) => a + Math.max(0, (parseFloat(c.amount) || 0) - (parseFloat(c.paidAmount) || 0)), 0);
