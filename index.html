@@ -953,12 +953,12 @@ const ListView = ({ title, type, items, categories, onAdd, onAddRecurringTemplat
                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">
                   {type === 'recurring' ? 'Monto mensual' : 'Monto'}
                 </label>
-                <input inputMode="decimal" className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xl font-black outline-none focus:border-indigo-200 transition-all" placeholder="0,00" value={newAmount} onChange={e=>setNewAmount(formatAmountInput(e.target.value))} />
+                <input inputMode="decimal" className="p-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-black outline-none focus:border-indigo-200 transition-all" placeholder="0,00" value={newAmount} onChange={e=>setNewAmount(formatAmountInput(e.target.value))} />
               </div>
               {type === 'recurring' && (
                 <div className="w-20 flex flex-col gap-1">
                   <label className={`text-[9px] font-black uppercase tracking-widest text-center ${recurPayType === 'autoDebit' ? 'text-slate-300' : 'text-slate-400'}`} title="Día del mes en que vence (1 al 31)">Día venc.</label>
-                  <input type="number" min="1" max="31" title="Día del mes en que vence (1 al 31)" disabled={recurPayType === 'autoDebit'} className={`w-20 p-4 border rounded-2xl text-sm font-black text-center outline-none transition-all ${recurPayType === 'autoDebit' ? 'bg-slate-100 border-slate-100 text-slate-300 cursor-not-allowed' : 'bg-slate-50 border-slate-100 focus:border-indigo-200'}`} value={newDueDay} onChange={e=>setNewDueDay(e.target.value)} />
+                  <input type="number" min="1" max="31" title="Día del mes en que vence (1 al 31)" disabled={recurPayType === 'autoDebit'} className={`w-20 p-3 border rounded-2xl text-sm font-black text-center outline-none transition-all ${recurPayType === 'autoDebit' ? 'bg-slate-100 border-slate-100 text-slate-300 cursor-not-allowed' : 'bg-slate-50 border-slate-100 focus:border-indigo-200'}`} value={newDueDay} onChange={e=>setNewDueDay(e.target.value)} />
                 </div>
               )}
               <button type="submit" className="bg-slate-900 text-white px-5 py-4 rounded-2xl font-black shadow-lg self-end shrink-0 flex flex-col items-center gap-0.5 active:scale-95 transition-all">
@@ -1081,7 +1081,7 @@ const ItemCard = ({ item, accent, uid, categories, cards = [] }) => {
           <div className="flex gap-2">
             <div className="flex-1 flex flex-col gap-1">
               <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Monto {item.type === 'recurring' ? 'mensual' : ''}</label>
-              <input inputMode="decimal" className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-base font-black outline-none" value={editData.amount} onChange={e=>setEditData({...editData, amount: formatAmountInput(e.target.value), fromPrevMonth: false})} placeholder="0,00" />
+              <input inputMode="decimal" className="p-2 bg-slate-50 border border-slate-100 rounded-xl text-sm font-black outline-none" value={editData.amount} onChange={e=>setEditData({...editData, amount: formatAmountInput(e.target.value), fromPrevMonth: false})} placeholder="0,00" />
             </div>
             {item.type === 'recurring' && (
               <div className="w-16 flex flex-col gap-1">
@@ -1274,11 +1274,11 @@ const TemplateForm = ({ categories, onAdd, isIncome = false, cards = [] }) => {
         <div className="flex gap-2">
           <div className="flex-1 flex flex-col gap-1">
             <label className="text-slate-500 text-[9px] font-black uppercase ml-1 tracking-widest">{isIncome ? 'Monto' : 'Monto mensual'}</label>
-            <input inputMode="decimal" className="p-4 bg-slate-50 text-slate-900 placeholder-slate-400 rounded-2xl text-xl font-black outline-none border border-slate-200 focus:border-indigo-300 transition-all" placeholder="0,00" value={amount} onChange={e=>setAmount(formatAmountInput(e.target.value))} />
+            <input inputMode="decimal" className="p-3 bg-slate-50 text-slate-900 placeholder-slate-400 rounded-2xl text-sm font-black outline-none border border-slate-200 focus:border-indigo-300 transition-all" placeholder="0,00" value={amount} onChange={e=>setAmount(formatAmountInput(e.target.value))} />
           </div>
           <div className="w-20 flex flex-col gap-1">
             <label className="text-slate-500 text-[9px] font-black uppercase ml-1 text-center tracking-widest" title="Día del mes en que vence o se acredita (1 al 31)">Día venc.</label>
-            <input type="number" min="1" max="31" title="Día del mes en que vence o se acredita (1 al 31)" className="p-4 bg-slate-50 text-slate-900 rounded-2xl text-sm text-center outline-none border border-slate-200 focus:border-indigo-300 transition-all" value={dueDay} onChange={e=>setDueDay(e.target.value)} />
+            <input type="number" min="1" max="31" title="Día del mes en que vence o se acredita (1 al 31)" className="p-3 bg-slate-50 text-slate-900 rounded-2xl text-sm text-center outline-none border border-slate-200 focus:border-indigo-300 transition-all" value={dueDay} onChange={e=>setDueDay(e.target.value)} />
           </div>
         </div>
       </div>
@@ -1320,7 +1320,7 @@ const TemplateCard = ({ template, onDelete, onUpdate, categories, isIncome, card
       <div className="p-5 bg-white border border-slate-200 rounded-[2rem] shadow-sm space-y-3 animate-fade-in">
         <input className="w-full p-3 bg-slate-50 text-slate-900 rounded-xl text-xs outline-none border border-slate-200 focus:border-indigo-300 transition-all" value={editData.name} onChange={e=>setEditData({...editData, name: e.target.value})} />
         <div className="flex gap-2">
-          <input inputMode="decimal" className="flex-1 p-3 bg-slate-50 text-slate-900 rounded-xl text-base font-black outline-none border border-slate-200 focus:border-indigo-300 transition-all" value={editData.amount} onChange={e=>setEditData({...editData, amount: formatAmountInput(e.target.value)})} />
+          <input inputMode="decimal" className="flex-1 p-2 bg-slate-50 text-slate-900 rounded-xl text-sm font-black outline-none border border-slate-200 focus:border-indigo-300 transition-all" value={editData.amount} onChange={e=>setEditData({...editData, amount: formatAmountInput(e.target.value)})} />
           <input type="number" min="1" max="31" className="w-16 p-3 bg-slate-50 text-slate-900 rounded-xl text-xs text-center outline-none border border-slate-200 focus:border-indigo-300 transition-all" value={editData.dueDay} onChange={e=>setEditData({...editData, dueDay: e.target.value})} />
         </div>
         {!isIncome && (
@@ -1600,10 +1600,19 @@ const AnalysisView = ({ currentMonthItems, stats, items, navDate, isSmall, budge
       </div>
 
       {cards.length > 0 && (() => {
+        const _m = navDate.getUTCMonth();
+        const _y = navDate.getUTCFullYear();
+        const _pm = _m === 0 ? 11 : _m - 1;
+        const _py = _m === 0 ? _y - 1 : _y;
+        const prevMonthItems = items.filter(item => {
+          if (!item.date) return false;
+          const d = new Date(item.date);
+          return d.getUTCMonth() === _pm && d.getUTCFullYear() === _py;
+        });
         const cardData = cards.map(card => {
           const autoDebits = currentMonthItems.filter(i => i.isAutoDebit && i.cardId === card.id);
           const dailyCredits = currentMonthItems.filter(i => i.type === 'daily' && i.paymentMethod === 'credit' && i.cardId === card.id);
-          const prevBalItems = currentMonthItems.filter(i => i.type === 'recurring' && i.isCardPayment && i.cardId === card.id && i.paid && i.paymentType === 'partial');
+          const prevBalItems = prevMonthItems.filter(i => i.type === 'recurring' && i.isCardPayment && i.cardId === card.id && i.paid && i.paymentType === 'partial');
           const autoDebitTotal = autoDebits.reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
           const dailyCreditTotal = dailyCredits.reduce((a, c) => a + (parseFloat(c.amount) || 0) / (c.cuotas || 1), 0);
           const prevBal = prevBalItems.reduce((a, c) => a + Math.max(0, (parseFloat(c.amount) || 0) - (parseFloat(c.paidAmount) || 0)), 0);
