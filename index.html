@@ -482,7 +482,7 @@ const App = () => {
               </div>
             </div>
             <div className="hidden md:block">
-              <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} items={items} navDate={navDate} isSmall budgets={budgets} />
+              <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} items={items} navDate={navDate} isSmall budgets={budgets} cards={cards} />
             </div>
           </div>
         </div>
@@ -490,7 +490,7 @@ const App = () => {
 
       <main className="main-container space-y-8">
         {view === 'dashboard' && <DashboardView stats={stats} onNavigate={setView} />}
-        {view === 'analysis' && <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} items={items} navDate={navDate} budgets={budgets} />}
+        {view === 'analysis' && <AnalysisView currentMonthItems={stats.currentMonthItems} stats={stats} items={items} navDate={navDate} budgets={budgets} cards={cards} />}
         {(view === 'income' || view === 'recurring' || view === 'daily') && (
           <ListView
             title={view === 'income' ? 'Ingresos' : view === 'recurring' ? 'Gastos Fijos' : 'Gastos Diarios'}
@@ -796,7 +796,7 @@ const ListView = ({ title, type, items, categories, onAdd, onApplyTemplates, use
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <button type="button" onClick={() => setPaymentMethod('debit')} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase border transition-all ${paymentMethod === 'debit' ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>Débito</button>
-                <button type="button" onClick={() => setPaymentMethod('credit')} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase border transition-all ${paymentMethod === 'credit' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>Tarjeta</button>
+                <button type="button" onClick={() => { setPaymentMethod('credit'); const def = cards.find(c => c.isDefault); if (def) setPaymentCardId(def.id); }} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase border transition-all ${paymentMethod === 'credit' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>Tarjeta</button>
                 {paymentMethod === 'credit' && (
                   <>
                     {cards.length > 0 && (
@@ -1099,15 +1099,21 @@ const CardsSection = ({ cards, onSave }) => {
   const addCard = (e) => {
     e.preventDefault();
     if (!newName.trim()) return;
-    const newCard = { id: Date.now().toString(), name: newName.trim(), closingDay: parseInt(newClosingDay) || 20, dueDay: parseInt(newDueDay) || 10 };
-    onSave([...cards, newCard]);
+    const isFirst = cards.length === 0;
+    const newCard = { id: Date.now().toString(), name: newName.trim(), closingDay: parseInt(newClosingDay) || 20, dueDay: parseInt(newDueDay) || 10, isDefault: isFirst };
+    const updated = isFirst ? [...cards, newCard] : cards.map(c => ({ ...c, isDefault: false })).concat(newCard);
+    onSave(updated);
     setNewName(''); setNewClosingDay('20'); setNewDueDay('10');
   };
 
   const deleteCard = (id) => onSave(cards.filter(c => c.id !== id));
 
   const saveEdit = (id) => {
-    onSave(cards.map(c => c.id === id ? { ...c, ...editData, closingDay: parseInt(editData.closingDay) || c.closingDay, dueDay: parseInt(editData.dueDay) || c.dueDay } : c));
+    const wasDefault = editData.isDefault;
+    onSave(cards.map(c => c.id === id
+      ? { ...c, ...editData, closingDay: parseInt(editData.closingDay) || c.closingDay, dueDay: parseInt(editData.dueDay) || c.dueDay }
+      : wasDefault ? { ...c, isDefault: false } : c
+    ));
     setEditingId(null);
   };
 
@@ -1131,6 +1137,9 @@ const CardsSection = ({ cards, onSave }) => {
                 <input type="number" min="1" max="31" className="p-3 bg-white/10 text-white rounded-xl text-xs text-center outline-none border border-white/10" value={editData.dueDay || ''} onChange={e => setEditData({...editData, dueDay: e.target.value})} />
               </div>
             </div>
+            <button type="button" onClick={() => setEditData({...editData, isDefault: !editData.isDefault})} className={`w-full py-2 rounded-xl text-[9px] font-black uppercase border transition-all ${editData.isDefault ? 'bg-amber-400 text-slate-900 border-amber-400' : 'bg-white/5 text-white/60 border-white/10'}`}>
+              {editData.isDefault ? '★ Predeterminada' : 'Marcar como predeterminada'}
+            </button>
             <div className="flex gap-2">
               <button onClick={() => saveEdit(card.id)} className="flex-1 bg-white text-slate-900 py-2.5 rounded-xl text-[9px] font-black uppercase">Guardar</button>
               <button onClick={() => setEditingId(null)} className="px-4 border border-white/20 text-white/40 py-2.5 rounded-xl text-[9px] font-black uppercase">X</button>
@@ -1139,7 +1148,10 @@ const CardsSection = ({ cards, onSave }) => {
         ) : (
           <div key={card.id} className="flex items-center gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
             <div className="flex-1">
-              <p className="text-[11px] font-black text-slate-700 uppercase tracking-widest">{card.name}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] font-black text-slate-700 uppercase tracking-widest">{card.name}</p>
+                {card.isDefault && <span className="text-[8px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-black uppercase">predeterminada</span>}
+              </div>
               <p className="text-[9px] text-slate-400 font-medium mt-0.5">Cierre día {card.closingDay} · Vence día {card.dueDay}</p>
             </div>
             <button onClick={() => { setEditingId(card.id); setEditData({...card}); }} className="p-2 text-slate-300 hover:text-indigo-500 transition-all"><Icons.Edit /></button>
@@ -1166,7 +1178,7 @@ const CardsSection = ({ cards, onSave }) => {
   );
 };
 
-const AnalysisView = ({ currentMonthItems, stats, items, navDate, isSmall, budgets = {} }) => {
+const AnalysisView = ({ currentMonthItems, stats, items, navDate, isSmall, budgets = {}, cards = [] }) => {
   const chartRef = useRef(null);
   const trendRef = useRef(null);
   const chartInstance = useRef(null);
@@ -1299,6 +1311,69 @@ const AnalysisView = ({ currentMonthItems, stats, items, navDate, isSmall, budge
         <div className="relative h-72 w-full"><canvas ref={trendRef}></canvas></div>
         <div className="mt-6 flex justify-center"><p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Año: {navDate.getUTCFullYear()}</p></div>
       </div>
+
+      {cards.length > 0 && (() => {
+        const cardData = cards.map(card => {
+          const autoDebits = currentMonthItems.filter(i => i.isAutoDebit && i.cardId === card.id);
+          const dailyCredits = currentMonthItems.filter(i => i.type === 'daily' && i.paymentMethod === 'credit' && i.cardId === card.id);
+          const autoDebitTotal = autoDebits.reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
+          const dailyCreditTotal = dailyCredits.reduce((a, c) => a + (parseFloat(c.amount) || 0) / (c.cuotas || 1), 0);
+          return { card, autoDebits, dailyCredits, autoDebitTotal, dailyCreditTotal, total: autoDebitTotal + dailyCreditTotal };
+        }).filter(d => d.autoDebits.length > 0 || d.dailyCredits.length > 0);
+
+        if (cardData.length === 0) return null;
+
+        return (
+          <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
+            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">Proyección</h3>
+            <h4 className="text-xl font-black text-slate-900 tracking-tight mb-6">Próximo Resumen por Tarjeta</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {cardData.map(({ card, autoDebits, dailyCredits, autoDebitTotal, dailyCreditTotal, total }) => (
+                <div key={card.id} className="bg-slate-50 p-5 rounded-2xl border border-slate-100 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-sm font-black text-slate-900 uppercase tracking-wide">{card.name}</p>
+                      <p className="text-[9px] text-slate-400 font-medium mt-0.5">Cierre día {card.closingDay} · Vence día {card.dueDay}</p>
+                    </div>
+                    <p className="text-xl font-black text-indigo-600">{formatCurrency(total)}</p>
+                  </div>
+
+                  {autoDebits.length > 0 && (
+                    <div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Débitos Automáticos · {formatCurrency(autoDebitTotal)}</p>
+                      <div className="space-y-1.5">
+                        {autoDebits.map(item => (
+                          <div key={item.id} className="flex justify-between items-center text-[10px] bg-white px-3 py-1.5 rounded-xl border border-slate-100">
+                            <span className="text-slate-600 truncate mr-2">{item.name}</span>
+                            <span className="font-black text-slate-900 whitespace-nowrap">{formatCurrency(item.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {dailyCredits.length > 0 && (
+                    <div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Gastos con Tarjeta · {formatCurrency(dailyCreditTotal)}</p>
+                      <div className="space-y-1.5">
+                        {dailyCredits.map(item => {
+                          const installment = (parseFloat(item.amount) || 0) / (item.cuotas || 1);
+                          return (
+                            <div key={item.id} className="flex justify-between items-center text-[10px] bg-white px-3 py-1.5 rounded-xl border border-slate-100">
+                              <span className="text-slate-600 truncate mr-2">{item.name}{item.cuotas > 1 ? ` · ${item.cuotas}c` : ''}</span>
+                              <span className="font-black text-slate-900 whitespace-nowrap">{formatCurrency(installment)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
