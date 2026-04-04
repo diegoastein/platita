@@ -758,13 +758,30 @@ const App = () => {
 
             {/* PREFERENCIAS */}
             <SettingsSection title="Preferencias" minimized={minPrefs} setMinimized={setMinPrefs}>
-              <div className="flex flex-col md:flex-row gap-4">
-                <button onClick={exportCSV} className="flex-1 flex items-center justify-center gap-3 bg-slate-50 border border-slate-100 p-5 rounded-2xl text-sm font-black text-slate-700 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 active:scale-95 transition-all">
-                  <Icons.Download /> Exportar mes actual (CSV)
-                </button>
-                <button onClick={() => setDarkMode(!darkMode)} className="flex-1 flex items-center justify-center gap-3 bg-slate-50 border border-slate-100 p-5 rounded-2xl text-sm font-black text-slate-700 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 active:scale-95 transition-all">
-                  {darkMode ? <Icons.Sun /> : <Icons.Moon />} {darkMode ? 'Modo Claro' : 'Modo Oscuro'}
-                </button>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">API Key de Claude (escáner de tickets)</label>
+                  <input
+                    type="password"
+                    className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none focus:border-indigo-200 transition-all font-mono"
+                    placeholder="sk-ant-..."
+                    defaultValue={localStorage.getItem('platita-claude-key') || ''}
+                    onBlur={e => {
+                      const val = e.target.value.trim();
+                      if (val) localStorage.setItem('platita-claude-key', val);
+                      else localStorage.removeItem('platita-claude-key');
+                      showToast(val ? 'API key guardada' : 'API key eliminada');
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col md:flex-row gap-4">
+                  <button onClick={exportCSV} className="flex-1 flex items-center justify-center gap-3 bg-slate-50 border border-slate-100 p-5 rounded-2xl text-sm font-black text-slate-700 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 active:scale-95 transition-all">
+                    <Icons.Download /> Exportar mes actual (CSV)
+                  </button>
+                  <button onClick={() => setDarkMode(!darkMode)} className="flex-1 flex items-center justify-center gap-3 bg-slate-50 border border-slate-100 p-5 rounded-2xl text-sm font-black text-slate-700 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 active:scale-95 transition-all">
+                    {darkMode ? <Icons.Sun /> : <Icons.Moon />} {darkMode ? 'Modo Claro' : 'Modo Oscuro'}
+                  </button>
+                </div>
               </div>
             </SettingsSection>
           </div>
@@ -844,73 +861,66 @@ const ListView = ({ title, type, items, categories, onAdd, onAddRecurringTemplat
   const [recurCardId, setRecurCardId] = useState('');
   const [askTemplate, setAskTemplate] = useState(null);
   const [scanning, setScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
   const scanInputRef = useRef(null);
-
-  const parseReceiptText = (text) => {
-    const parseArgAmount = (str) => {
-      if (!str) return 0;
-      str = str.trim().replace(/\s/g, '');
-      if (str.includes(',') && str.includes('.')) str = str.replace(/\./g, '').replace(',', '.');
-      else if (str.includes(',')) str = str.replace(',', '.');
-      return parseFloat(str) || 0;
-    };
-    const totalPatterns = [
-      /(?:total\s*a?\s*pagar|total\s*general|importe\s*total|a\s*pagar)\s*[:\s]*\$?\s*([\d.,]+)/i,
-      /total\s*[:\s]+\$?\s*([\d.,]+)/i,
-    ];
-    let amount = null;
-    for (const p of totalPatterns) {
-      const m = text.match(p);
-      if (m) { amount = parseArgAmount(m[1]); if (amount > 0) break; }
-    }
-    if (!amount) {
-      const nums = [...text.matchAll(/\$\s*([\d.,]+)/g)].map(m => parseArgAmount(m[1])).filter(n => n > 50);
-      if (nums.length) amount = Math.max(...nums);
-    }
-    const dateMatch = text.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-    let date = null;
-    if (dateMatch) {
-      const [, d, mo, y] = dateMatch;
-      const year = y.length === 2 ? `20${y}` : y;
-      const parsed = new Date(`${year}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`);
-      if (!isNaN(parsed) && parsed <= new Date()) date = `${year}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
-    }
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 3 && !/^\d+$/.test(l));
-    const storeName = lines.slice(0, 2).join(' ').replace(/\s+/g, ' ').slice(0, 40).trim();
-    return { amount, date, storeName };
-  };
 
   const handleScan = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     e.target.value = '';
-    setScanning(true); setScanProgress(0);
+    const apiKey = localStorage.getItem('platita-claude-key');
+    if (!apiKey) {
+      showToast('Configurá tu API key de Claude en Ajustes → Preferencias');
+      return;
+    }
+    setScanning(true);
     try {
-      if (!window.Tesseract) {
-        await new Promise((resolve, reject) => {
-          const s = document.createElement('script');
-          s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@2/dist/tesseract.min.js';
-          s.onload = resolve; s.onerror = reject;
-          document.head.appendChild(s);
-        });
-      }
-      const { data: { text } } = await Tesseract.recognize(file, 'spa', {
-        logger: m => { if (m.status === 'recognizing text') setScanProgress(Math.round(m.progress * 100)); }
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
       });
-      const { amount, date, storeName } = parseReceiptText(text);
-      if (amount) setNewAmount(formatAmountInput(String(Math.round(amount)).replace('.', ',')));
-      if (date) setNewDate(date);
-      if (storeName) {
-        setNewName(storeName);
-        const s = suggestCategory(storeName);
+      const mediaType = file.type || 'image/jpeg';
+      const catList = categories.filter(c => c !== 'Ingreso').join(', ');
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+          'anthropic-dangerous-direct-browser-calls': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 256,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+              { type: 'text', text: `Analizá este ticket de compra argentino. Respondé SOLO con JSON válido sin markdown:\n{"amount":<número o null>,"date":"<YYYY-MM-DD o null>","store":"<nombre del comercio, máx 40 chars, o null>","category":"<una de: ${catList}; o null>"}` }
+            ]
+          }]
+        })
+      });
+      if (!response.ok) throw new Error(`API error ${response.status}`);
+      const data = await response.json();
+      const raw = data.content[0].text.trim().replace(/```json?|```/g, '');
+      const parsed = JSON.parse(raw);
+      if (parsed.amount) setNewAmount(formatAmountInput(String(Math.round(parsed.amount)).replace('.', ',')));
+      if (parsed.date) setNewDate(parsed.date);
+      if (parsed.store) {
+        setNewName(parsed.store);
+        const s = parsed.category || suggestCategory(parsed.store);
         setSuggestedCat(s); if (s) setNewCat(s);
+      } else if (parsed.category) {
+        setSuggestedCat(parsed.category); setNewCat(parsed.category);
       }
-      showToast(amount ? `Ticket: ${formatCurrency(amount)}` : 'No se detectó monto — completá manualmente');
-    } catch {
-      showToast('No se pudo leer el ticket. Intentá con mejor iluminación.');
+      showToast(parsed.amount ? `Ticket: ${formatCurrency(parsed.amount)}` : 'No se detectó monto — completá manualmente');
+    } catch (err) {
+      console.error(err);
+      showToast('Error al leer el ticket. Verificá tu API key en Ajustes.');
     } finally {
-      setScanning(false); setScanProgress(0);
+      setScanning(false);
     }
   };
 
@@ -1024,14 +1034,9 @@ const ListView = ({ title, type, items, categories, onAdd, onAddRecurringTemplat
             </>
           )}
           {scanning && (
-            <div className="flex flex-col items-center justify-center gap-2 py-4 animate-fade-in">
-              <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-xs font-black text-slate-500 uppercase tracking-widest">
-                {scanProgress > 0 ? `Leyendo ticket… ${scanProgress}%` : 'Cargando OCR…'}
-              </p>
-              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                <div className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${scanProgress}%` }} />
-              </div>
+            <div className="flex items-center justify-center gap-3 py-4 animate-fade-in">
+              <div className="w-6 h-6 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Leyendo con Claude…</p>
             </div>
           )}
           <div className="flex flex-col md:flex-row gap-4">
