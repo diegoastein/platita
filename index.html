@@ -425,18 +425,34 @@ const App = () => {
     });
 
     const prevIncome = prevMonthItems.filter(i => i.type === 'income' && i.paid).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
-    const prevSpent = prevMonthItems.filter(i => i.type !== 'income').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
+    // Bug 3 fix: prevSpent usa los mismos criterios que totalSpent (solo pagados, mismas categorías)
+    const prevRecPaid = prevMonthItems.filter(i => i.type === 'recurring' && i.paid && !i.isAutoDebit).reduce((a, c) => a + (c.paymentType === 'partial' ? (parseFloat(c.paidAmount) || 0) : (parseFloat(c.amount) || 0)), 0);
+    const prevDaily = prevMonthItems.filter(i => i.type === 'daily').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
+    const prevAutoDebit = prevMonthItems.filter(i => i.type === 'recurring' && i.isAutoDebit).reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
+    const prevSpent = prevRecPaid + prevDaily + prevAutoDebit;
     const calcDelta = (curr, prev) => prev === 0 ? null : Math.round(((curr - prev) / prev) * 100);
-    const prevBalTotal = prevMonthItems.filter(i => i.type === 'recurring' && !i.isAutoDebit && i.cardId && i.paid && i.paymentType === 'partial')
+    // Bug 5 fix: no mostrar saldo anterior TC si ya fue pagado en el mes actual
+    const prevBalTotal = prevMonthItems
+      .filter(i => {
+        if (!(i.type === 'recurring' && !i.isAutoDebit && i.cardId && i.paid && i.paymentType === 'partial')) return false;
+        const fullyPaidNow = currentMonthItems.some(curr =>
+          curr.name.toLowerCase() === i.name.toLowerCase() &&
+          curr.cardId === i.cardId && curr.paid && curr.paymentType !== 'partial'
+        );
+        return !fullyPaidNow;
+      })
       .reduce((a, c) => a + Math.max(0, (parseFloat(c.amount) || 0) - (parseFloat(c.paidAmount) || 0)), 0);
+
+    // Bug 1+2 fix: balance y totalSpent incluyen TC y débito automático
+    const totalSpent = recPaid + dailyDebit + dailyCredit + autoDebitTotal;
 
     return {
       income: incomeCobrado, incomePending, recPaid, recPending, daily, dailyDebit, dailyCredit, autoDebitTotal, creditByCard, prevBalTotal,
-      balance: incomeCobrado - recPaid - dailyDebit,
-      totalSpent: recPaid + dailyDebit,
+      balance: incomeCobrado - totalSpent,
+      totalSpent,
       currentMonthItems,
       deltaIncome: calcDelta(incomeCobrado, prevIncome),
-      deltaSpent: calcDelta(recPaid + dailyDebit, prevSpent)
+      deltaSpent: calcDelta(totalSpent, prevSpent)
     };
   }, [items, navDate]);
 
@@ -460,11 +476,6 @@ const App = () => {
     const targetList = isIncome ? incomeTemplates : templates;
     if (!user || targetList.length === 0) return;
     const targetType = isIncome ? 'income' : 'recurring';
-    const alreadyApplied = stats.currentMonthItems.some(i => i.type === targetType);
-    if (alreadyApplied) {
-      showToast("Ya hay registros para este mes");
-      return;
-    }
     const batch = db.batch();
     const colRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('transactions');
     const d = new Date(navDate);
@@ -479,7 +490,14 @@ const App = () => {
       return pd.getUTCMonth() === prevMonth && pd.getUTCFullYear() === prevYear;
     });
 
+    // Bug 4 fix: saltar ítems que ya existen este mes en vez de bloquear todo
+    let added = 0;
     targetList.forEach(t => {
+      const alreadyExists = stats.currentMonthItems.some(i =>
+        i.type === targetType && i.name.toLowerCase() === t.name.toLowerCase()
+      );
+      if (alreadyExists) return;
+      added++;
       const newDoc = colRef.doc();
       const targetDateStr = `${currentMonthStr}-${String(t.dueDay || 1).padStart(2, '0')}T12:00:00Z`;
       const prevItem = prevItems.find(p => p.name.toLowerCase() === t.name.toLowerCase());
@@ -501,8 +519,9 @@ const App = () => {
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     });
+    if (added === 0) { showToast("Ya están todos los registros del mes"); return; }
     await batch.commit();
-    showToast(isIncome ? "Ingresos aplicados" : "Gastos fijos aplicados");
+    showToast(isIncome ? `${added} ingreso(s) aplicado(s)` : `${added} gasto(s) fijo(s) aplicado(s)`);
   };
 
   const saveCards = (newCards) => {
