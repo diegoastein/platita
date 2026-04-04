@@ -619,22 +619,6 @@ const App = () => {
                     )}
                   </div>
                 </div>
-                {Object.keys(stats.creditByCard || {}).length > 0 && (
-                  <div className="border-t border-white/20 pt-4 w-full">
-                    <p className="text-amber-400 text-[9px] uppercase font-black tracking-widest mb-3 text-center">Estimado Tarjetas</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {Object.entries(stats.creditByCard).map(([cardId, amount]) => {
-                        const card = cards.find(c => c.id === cardId);
-                        return (
-                          <div key={cardId} className="text-center">
-                            <p className="text-white/60 text-[9px] font-black uppercase truncate">{card ? card.name : cardId}</p>
-                            <p className="text-white font-black text-sm">{hideBalance ? "---" : formatCurrency(amount)}</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
             <div className="hidden md:block">
@@ -926,17 +910,6 @@ const ListView = ({ title, type, items, categories, onAdd, onAddRecurringTemplat
         )}
       </div>
 
-      {type === 'daily' && (
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          {['Todas', ...categories].map(cat => (
-            <button key={cat} onClick={() => setFilterCat(cat)}
-              className={`px-4 py-2 rounded-full text-[10px] font-black uppercase whitespace-nowrap border transition-all shrink-0
-                ${filterCat === cat ? 'bg-rose-500 text-white border-rose-500 shadow-md' : 'bg-white text-slate-500 border-slate-100 hover:border-slate-300'}`}>
-              {cat}
-            </button>
-          ))}
-        </div>
-      )}
 
       <div className="flex flex-col gap-4">
         {askTemplate && (
