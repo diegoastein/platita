@@ -843,6 +843,76 @@ const ListView = ({ title, type, items, categories, onAdd, onAddRecurringTemplat
   const [recurPayType, setRecurPayType] = useState('cash');
   const [recurCardId, setRecurCardId] = useState('');
   const [askTemplate, setAskTemplate] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const scanInputRef = useRef(null);
+
+  const parseReceiptText = (text) => {
+    const parseArgAmount = (str) => {
+      if (!str) return 0;
+      str = str.trim().replace(/\s/g, '');
+      if (str.includes(',') && str.includes('.')) str = str.replace(/\./g, '').replace(',', '.');
+      else if (str.includes(',')) str = str.replace(',', '.');
+      return parseFloat(str) || 0;
+    };
+    const totalPatterns = [
+      /(?:total\s*a?\s*pagar|total\s*general|importe\s*total|a\s*pagar)\s*[:\s]*\$?\s*([\d.,]+)/i,
+      /total\s*[:\s]+\$?\s*([\d.,]+)/i,
+    ];
+    let amount = null;
+    for (const p of totalPatterns) {
+      const m = text.match(p);
+      if (m) { amount = parseArgAmount(m[1]); if (amount > 0) break; }
+    }
+    if (!amount) {
+      const nums = [...text.matchAll(/\$\s*([\d.,]+)/g)].map(m => parseArgAmount(m[1])).filter(n => n > 50);
+      if (nums.length) amount = Math.max(...nums);
+    }
+    const dateMatch = text.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    let date = null;
+    if (dateMatch) {
+      const [, d, mo, y] = dateMatch;
+      const year = y.length === 2 ? `20${y}` : y;
+      const parsed = new Date(`${year}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`);
+      if (!isNaN(parsed) && parsed <= new Date()) date = `${year}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    }
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 3 && !/^\d+$/.test(l));
+    const storeName = lines.slice(0, 2).join(' ').replace(/\s+/g, ' ').slice(0, 40).trim();
+    return { amount, date, storeName };
+  };
+
+  const handleScan = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    setScanning(true); setScanProgress(0);
+    try {
+      if (!window.Tesseract) {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@2/dist/tesseract.min.js';
+          s.onload = resolve; s.onerror = reject;
+          document.head.appendChild(s);
+        });
+      }
+      const { data: { text } } = await Tesseract.recognize(file, 'spa', {
+        logger: m => { if (m.status === 'recognizing text') setScanProgress(Math.round(m.progress * 100)); }
+      });
+      const { amount, date, storeName } = parseReceiptText(text);
+      if (amount) setNewAmount(formatAmountInput(String(Math.round(amount)).replace('.', ',')));
+      if (date) setNewDate(date);
+      if (storeName) {
+        setNewName(storeName);
+        const s = suggestCategory(storeName);
+        setSuggestedCat(s); if (s) setNewCat(s);
+      }
+      showToast(amount ? `Ticket: ${formatCurrency(amount)}` : 'No se detectó monto — completá manualmente');
+    } catch {
+      showToast('No se pudo leer el ticket. Intentá con mejor iluminación.');
+    } finally {
+      setScanning(false); setScanProgress(0);
+    }
+  };
 
   const avgDaily = useMemo(() => {
     if (type !== 'daily') return null;
@@ -944,6 +1014,26 @@ const ListView = ({ title, type, items, categories, onAdd, onAddRecurringTemplat
           </div>
         )}
         <form onSubmit={handleSubmit} className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
+          {type === 'daily' && (
+            <>
+              <input ref={scanInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScan} />
+              <button type="button" onClick={() => scanInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-2xl py-3 text-slate-400 hover:border-indigo-300 hover:text-indigo-500 transition-all active:scale-95 text-xs font-black uppercase tracking-widest">
+                📷 Escanear ticket
+              </button>
+            </>
+          )}
+          {scanning && (
+            <div className="flex flex-col items-center justify-center gap-2 py-4 animate-fade-in">
+              <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs font-black text-slate-500 uppercase tracking-widest">
+                {scanProgress > 0 ? `Leyendo ticket… ${scanProgress}%` : 'Cargando OCR…'}
+              </p>
+              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${scanProgress}%` }} />
+              </div>
+            </div>
+          )}
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-[2] flex flex-col gap-1">
               <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">
