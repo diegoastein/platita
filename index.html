@@ -924,7 +924,7 @@ const ListView = ({ title, type, items, categories, onAdd, onAddRecurringTemplat
       showToast(parsed.amount ? `Ticket: ${formatCurrency(parsed.amount)}` : 'No se detectó monto — completá manualmente');
     } catch (err) {
       console.error(err);
-      showToast('Error al leer el ticket. Verificá tu API key en Ajustes.');
+      showToast(err.message || 'Error al leer el ticket.');
     } finally {
       setScanning(false);
     }
