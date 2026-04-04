@@ -117,12 +117,15 @@ const CATEGORY_KEYWORDS = {
   'carniceria':'Carnicería','carne':'Carnicería','pollo':'Carnicería','asado':'Carnicería',
   'panaderia':'Panadería','pan ':'Panadería','facturas':'Panadería','medialunas':'Panadería',
   // Comida
-  'pizza':'Comida Rápida','burger':'Comida Rápida','hamburguesa':'Comida Rápida','empanada':'Comida Rápida','mcdonalds':'Comida Rápida','kfc':'Comida Rápida',
-  'restaurant':'Restaurante','resto ':'Restaurante','almuerzo':'Restaurante','cena ':'Restaurante','sushi':'Restaurante','parrilla':'Restaurante',
+  'comida':'Restaurante','desayuno':'Café y Bebidas','merienda':'Café y Bebidas','mate':'Café y Bebidas',
+  'pizza':'Comida Rápida','burger':'Comida Rápida','hamburguesa':'Comida Rápida','empanada':'Comida Rápida','mcdonalds':'Comida Rápida','kfc':'Comida Rápida','taco':'Comida Rápida','shawarma':'Comida Rápida',
+  'restaurant':'Restaurante','resto ':'Restaurante','almuerzo':'Restaurante','cena ':'Restaurante','sushi':'Restaurante','parrilla':'Restaurante','tenedor':'Restaurante',
   'delivery':'Delivery','pedidosya':'Delivery','rappi':'Delivery',
-  'kiosco':'Kiosco','kiosko':'Kiosco','snack':'Kiosco','golosina':'Kiosco',
+  'kiosco':'Kiosco','kiosko':'Kiosco','snack':'Kiosco','golosina':'Kiosco','alfajor':'Kiosco','chocol':'Kiosco',
   'helado':'Heladería','heladeria':'Heladería',
-  'cafe ':'Café y Bebidas','cafeteria':'Café y Bebidas','starbucks':'Café y Bebidas','bebida':'Café y Bebidas','jugo':'Café y Bebidas','agua ':'Café y Bebidas',
+  'cafe ':'Café y Bebidas','cafeteria':'Café y Bebidas','starbucks':'Café y Bebidas','bebida':'Café y Bebidas','jugo':'Café y Bebidas','agua ':'Café y Bebidas','te ':'Café y Bebidas','infusion':'Café y Bebidas',
+  'fiambre':'Fiambrería','jamon':'Fiambrería','queso':'Fiambrería','feta':'Fiambrería',
+  'feria':'Verdulería','churrasco':'Carnicería','bife':'Carnicería','pechuga':'Carnicería','cerdo':'Carnicería','cordero':'Carnicería',
   // Hogar
   'alquiler':'Alquiler','renta':'Alquiler',
   'expensas':'Expensas',
@@ -952,7 +955,9 @@ const ListView = ({ title, type, items, categories, onAdd, onAddRecurringTemplat
                   const val = e.target.value;
                   setNewName(val);
                   const s = suggestCategory(val);
-                  if (s) { setSuggestedCat(s); setNewCat(s); }
+                  setSuggestedCat(s);
+                  if (s) setNewCat(s);
+                  else if (!val.trim()) setNewCat('General');
                 }} />
             </div>
             <div className="flex-1 flex gap-2 items-end">
@@ -1216,15 +1221,42 @@ const CategoryPicker = ({ value, onChange, suggested, categories }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const filtered = search ? categories.filter(c => c.toLowerCase().includes(search.toLowerCase())) : categories;
+  const isGeneral = value === 'General';
+  const isSuggested = !!suggested && suggested === value;
+
   return (
     <div className="relative">
-      <button type="button" onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-black text-slate-700 hover:border-slate-300 transition-all w-full md:w-auto">
-        <span className="text-[9px] text-slate-400 uppercase tracking-widest shrink-0">Categoría</span>
-        <span className="flex-1 text-left text-slate-900">{value}</span>
-        {suggested === value && <span className="text-[8px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full font-black uppercase shrink-0">sugerida</span>}
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`w-3 h-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
+      {isSuggested ? (
+        <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-2xl px-4 py-3">
+          <div>
+            <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">✨ Categoría detectada</p>
+            <p className="text-sm font-black text-indigo-700">{value}</p>
+          </div>
+          <button type="button" onClick={() => setOpen(!open)}
+            className="text-[9px] font-black text-indigo-400 uppercase tracking-widest underline hover:text-indigo-600">
+            Cambiar
+          </button>
+        </div>
+      ) : isGeneral ? (
+        <button type="button" onClick={() => setOpen(!open)}
+          className="w-full flex items-center gap-3 bg-amber-50 border border-amber-300 rounded-2xl px-4 py-3 text-left hover:border-amber-400 transition-all">
+          <span className="text-amber-400 text-base">⚠</span>
+          <div className="flex-1">
+            <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Categoría sin definir</p>
+            <p className="text-xs font-black text-amber-700">Tocá para elegir</p>
+          </div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3 h-3 text-amber-400 shrink-0"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      ) : (
+        <button type="button" onClick={() => setOpen(!open)}
+          className="w-full flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 hover:border-slate-300 transition-all">
+          <div className="flex-1 text-left">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Categoría</p>
+            <p className="text-sm font-black text-slate-900">{value}</p>
+          </div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3 h-3 text-slate-400 shrink-0"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      )}
       {open && (
         <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 w-72 animate-fade-in">
           <input autoFocus placeholder="Buscar categoría..." value={search} onChange={e => setSearch(e.target.value)}
