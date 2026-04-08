@@ -1,12 +1,16 @@
 // sw.js — Service Worker de Platita
-const CACHE_NAME = 'platita-v1';
+const CACHE_NAME = 'platita-v2';
+const CDN_CACHE = 'platita-cdn-v1';
 
 // Recursos a cachear para funcionar offline
 const STATIC_ASSETS = [
   '/platita/',
   '/platita/index.html',
-  '/platita/manifest.json',
-  // CDN externos
+  '/platita/manifest.json'
+];
+
+// CDN externos que cachear con estrategia cache-first
+const CDN_ASSETS = [
   'https://cdn.tailwindcss.com',
   'https://cdn.jsdelivr.net/npm/chart.js',
   'https://unpkg.com/react@18/umd/react.production.min.js',
@@ -21,15 +25,26 @@ const STATIC_ASSETS = [
 // --- INSTALL: cachear todos los recursos estáticos ---
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      console.log('[SW] Cacheando recursos estáticos...');
-      // Cachear de a uno para no fallar si algún CDN no responde
-      return Promise.allSettled(
-        STATIC_ASSETS.map(url =>
-          cache.add(url).catch(err => console.warn('[SW] No se pudo cachear:', url, err))
-        )
-      );
-    }).then(() => self.skipWaiting())
+    Promise.all([
+      // Cachear assets locales en CACHE_NAME
+      caches.open(CACHE_NAME).then(cache => {
+        console.log('[SW] Cacheando recursos locales...');
+        return Promise.allSettled(
+          STATIC_ASSETS.map(url =>
+            cache.add(url).catch(err => console.warn('[SW] No se pudo cachear:', url, err))
+          )
+        );
+      }),
+      // Cachear CDNs en CDN_CACHE (de forma silent, sin fallar si no está disponible)
+      caches.open(CDN_CACHE).then(cache => {
+        console.log('[SW] Cacheando CDNs...');
+        return Promise.allSettled(
+          CDN_ASSETS.map(url =>
+            cache.add(url).catch(err => console.warn('[SW] CDN no disponible:', url))
+          )
+        );
+      })
+    ]).then(() => self.skipWaiting())
   );
 });
 
@@ -39,7 +54,7 @@ self.addEventListener('activate', event => {
     caches.keys().then(keys =>
       Promise.all(
         keys
-          .filter(key => key !== CACHE_NAME)
+          .filter(key => key !== CACHE_NAME && key !== CDN_CACHE)
           .map(key => {
             console.log('[SW] Eliminando cache vieja:', key);
             return caches.delete(key);
@@ -49,7 +64,7 @@ self.addEventListener('activate', event => {
   );
 });
 
-// --- FETCH: estrategia Network-first con fallback a cache ---
+// --- FETCH: estrategia optimizada por tipo de recurso ---
 self.addEventListener('fetch', event => {
   // Ignorar requests que no son GET
   if (event.request.method !== 'GET') return;
@@ -63,30 +78,61 @@ self.addEventListener('fetch', event => {
     url.includes('securetoken.googleapis.com')
   ) return;
 
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        // Si la respuesta es válida, guardarla en cache
-        if (response && response.status === 200) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseClone);
-          });
+  // Estrategia Cache-First para CDNs versionados (nunca cambian)
+  const isCDN = url.includes('cdn.') ||
+                url.includes('unpkg.com') ||
+                url.includes('gstatic.com') ||
+                url.includes('googleapis.com');
+
+  if (isCDN) {
+    event.respondWith(
+      caches.match(event.request).then(cached => {
+        if (cached) {
+          console.log('[SW] CDN desde cache:', url);
+          return cached;
         }
-        return response;
+        return fetch(event.request)
+          .then(response => {
+            if (response && response.status === 200) {
+              const responseClone = response.clone();
+              caches.open(CDN_CACHE).then(cache => {
+                cache.put(event.request, responseClone);
+              });
+            }
+            return response;
+          })
+          .catch(() => {
+            // Si no hay conexión ni cache, devolver offline page si es navegación
+            if (event.request.mode === 'navigate') {
+              return caches.match('/platita/index.html');
+            }
+          });
       })
-      .catch(() => {
-        // Sin conexión: servir desde cache
-        return caches.match(event.request).then(cached => {
-          if (cached) {
-            console.log('[SW] Sirviendo desde cache:', url);
-            return cached;
+    );
+  } else {
+    // Network-first para recursos locales
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseClone);
+            });
           }
-          // Si no hay cache, devolver el index.html (para navegación SPA)
-          if (event.request.mode === 'navigate') {
-            return caches.match('/platita/index.html');
-          }
-        });
-      })
-  );
+          return response;
+        })
+        .catch(() => {
+          return caches.match(event.request).then(cached => {
+            if (cached) {
+              console.log('[SW] Sirviendo desde cache:', url);
+              return cached;
+            }
+            if (event.request.mode === 'navigate') {
+              return caches.match('/platita/index.html');
+            }
+          });
+        })
+    );
+  }
 });
