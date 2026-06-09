@@ -60,6 +60,23 @@ body.dark .text-slate-300 { color: #475569 !important; }
 body.dark .glass-nav { background: rgba(15, 23, 42, 0.97) !important; border-top-color: rgba(255,255,255,0.05) !important; }
 body.dark .shadow-sm { box-shadow: 0 1px 3px rgba(0,0,0,0.5) !important; }
 body.dark input:not([class*="bg-slate-9"]):not([class*="bg-white/"]), body.dark select { background-color: #1e293b !important; color: #f1f5f9 !important; border-color: #334155 !important; }
+
+/* Contrast overrides for Light (Diurno) Mode */
+body:not(.dark) .text-slate-300 { color: #64748b !important; }
+body:not(.dark) .text-slate-400 { color: #475569 !important; }
+body:not(.dark) .text-slate-500 { color: #334155 !important; }
+body:not(.dark) .text-slate-600 { color: #1e293b !important; }
+body:not(.dark) .text-slate-700 { color: #0f172a !important; }
+
+body:not(.dark) .border-slate-100 { border-color: #cbd5e1 !important; }
+body:not(.dark) .border-slate-200 { border-color: #94a3b8 !important; }
+
+body:not(.dark) input:not([type="submit"]):not([type="button"]), body:not(.dark) select {
+  border-color: #cbd5e1 !important;
+}
+body:not(.dark) input:focus, body:not(.dark) select:focus {
+  border-color: #0f172a !important;
+}
 </style>
 </head>
 <body>
@@ -326,6 +343,7 @@ const App = () => {
   const [toast, setToast] = useState({ show: false, msg: '' });
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [authError, setAuthError] = useState(null);
+  const [isRegistering, setIsRegistering] = useState(false);
   const [minIncomeT, setMinIncomeT] = useState(true);
   const [minExpenseT, setMinExpenseT] = useState(true);
   const [minBudgets, setMinBudgets] = useState(true);
@@ -351,11 +369,20 @@ const App = () => {
   const handleLogin = (e) => {
     e.preventDefault();
     setLoading(true);
-    auth.signInWithEmailAndPassword(loginData.email, loginData.password)
-      .catch(() => {
-        setAuthError("Email o contraseña incorrectos");
-        setLoading(false);
-      });
+    setAuthError(null);
+    if (isRegistering) {
+      auth.createUserWithEmailAndPassword(loginData.email, loginData.password)
+        .catch((err) => {
+          setAuthError(err.message || "Error al crear la cuenta");
+          setLoading(false);
+        });
+    } else {
+      auth.signInWithEmailAndPassword(loginData.email, loginData.password)
+        .catch(() => {
+          setAuthError("Email o contraseña incorrectos");
+          setLoading(false);
+        });
+    }
   };
 
   useEffect(() => {
@@ -568,7 +595,10 @@ const App = () => {
         <input type="email" required className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none" placeholder="Email" value={loginData.email} onChange={e=>setLoginData({...loginData, email: e.target.value})} />
         <input type="password" required className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none" placeholder="Contraseña" value={loginData.password} onChange={e=>setLoginData({...loginData, password: e.target.value})} />
         {authError && <p className="text-rose-500 text-xs font-bold">{authError}</p>}
-        <button type="submit" className="w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-lg shadow-xl active:scale-95 transition-transform">Ingresar</button>
+        <button type="submit" className="w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-lg shadow-xl active:scale-95 transition-transform">{isRegistering ? "Crear Cuenta" : "Ingresar"}</button>
+        <button type="button" onClick={() => { setIsRegistering(!isRegistering); setAuthError(null); }} className="w-full text-slate-500 hover:text-slate-800 text-xs font-bold mt-2 transition-colors">
+          {isRegistering ? "¿Ya tienes cuenta? Ingresa aquí" : "¿No tienes cuenta? Regístrate aquí"}
+        </button>
       </form>
     </div>
   );
