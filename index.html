@@ -2,6 +2,44 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<!-- Depurador en pantalla para capturar errores de JS -->
+<script>
+    window.onerror = function(message, source, lineno, colno, error) {
+        var div = document.getElementById('debug-err-console');
+        if (!div) {
+            div = document.createElement('div');
+            div.id = 'debug-err-console';
+            div.style = 'position:fixed;top:0;left:0;width:100%;z-index:99999;background:rgba(220,38,38,0.95);color:white;padding:15px;font-family:monospace;font-size:12px;max-height:50vh;overflow-y:auto;box-shadow:0 4px 10px rgba(0,0,0,0.3);box-sizing:border-box;';
+            var header = document.createElement('h3');
+            header.textContent = '❌ Error de JavaScript Detectado:';
+            header.style = 'margin:0 0 10px 0;font-size:14px;font-weight:bold;';
+            div.appendChild(header);
+            document.body ? document.body.appendChild(div) : document.documentElement.appendChild(div);
+        }
+        var p = document.createElement('p');
+        p.style = 'margin:5px 0;border-bottom:1px solid rgba(255,255,255,0.2);padding-bottom:5px;word-break:break-all;';
+        p.textContent = message + ' (' + (source ? source.split('/').pop() : 'desconocido') + ':' + lineno + ':' + colno + ')';
+        div.appendChild(p);
+        return false;
+    };
+    window.onunhandledrejection = function(e) {
+        var div = document.getElementById('debug-err-console');
+        if (!div) {
+            div = document.createElement('div');
+            div.id = 'debug-err-console';
+            div.style = 'position:fixed;top:0;left:0;width:100%;z-index:99999;background:rgba(220,38,38,0.95);color:white;padding:15px;font-family:monospace;font-size:12px;max-height:50vh;overflow-y:auto;box-shadow:0 4px 10px rgba(0,0,0,0.3);box-sizing:border-box;';
+            var header = document.createElement('h3');
+            header.textContent = '❌ Promesa Rechazada No Manejada:';
+            header.style = 'margin:0 0 10px 0;font-size:14px;font-weight:bold;';
+            div.appendChild(header);
+            document.body ? document.body.appendChild(div) : document.documentElement.appendChild(div);
+        }
+        var p = document.createElement('p');
+        p.style = 'margin:5px 0;border-bottom:1px solid rgba(255,255,255,0.2);padding-bottom:5px;word-break:break-all;';
+        p.textContent = 'Promise rejected: ' + (e.reason ? (e.reason.message || e.reason) : 'Razón desconocida');
+        div.appendChild(p);
+    };
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0f172a">
 <meta name="mobile-web-app-capable" content="yes">
@@ -10,12 +48,20 @@
 <meta name="apple-mobile-web-app-title" content="Platita">
 <link rel="manifest" href="manifest.json">
 <title>Platita - Mi Control de Finanzas</title>
-<script>tailwind.config = { darkMode: 'class' }</script>
 <script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config = { darkMode: 'class' }</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script>
+  Babel.registerPreset("custom-preset", {
+    presets: [
+      [Babel.availablePresets["env"], { modules: false }],
+      [Babel.availablePresets["react"], { runtime: "classic" }]
+    ]
+  });
+</script>
 <!-- Firebase SDKs (Compat Mode) -->
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
@@ -81,7 +127,7 @@ body:not(.dark) input:focus, body:not(.dark) select:focus {
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel">
+<script type="text/babel" data-presets="custom-preset">
 
 // --- CONSTANTES ---
 const DEFAULT_CATEGORIES = [
